@@ -39,3 +39,7 @@ coverage/
 # Misc
 *.log
 .cache/
+
+# Uploaded files
+server/uploads/public/*
+!server/uploads/public/.gitkeep
