@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -10,9 +11,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Servir les fichiers statiques (images uploadées)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/films', require('./routes/films'));
+app.use('/api/cinemas', require('./routes/cinemas'));
+app.use('/api/utils', require('./routes/utils'));
 app.use('/api/salles', require('./routes/salles'));
 app.use('/api/seances', require('./routes/seances'));
 app.use('/api/reservations', require('./routes/reservations'));

@@ -31,6 +31,7 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
     films: 0,
+    cinemas: 0,
     salles: 0,
     seances: 0,
     reservations: 0,
@@ -48,12 +49,14 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const [filmsRes, sallesRes, seancesRes, reservationsRes, usersRes] = await Promise.all([
-        axios.get(`${API_URL}/films/all`),
-        axios.get(`${API_URL}/salles/all`),
-        axios.get(`${API_URL}/seances/all`),
-        axios.get(`${API_URL}/reservations/all`),
-        axios.get(`${API_URL}/users`)
+      const token = localStorage.getItem('token');
+      const [filmsRes, cinemasRes, sallesRes, seancesRes, reservationsRes, usersRes] = await Promise.all([
+        axios.get(`${API_URL}/films/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/cinemas/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/salles/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/seances/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/reservations/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/users`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       const reservations = reservationsRes.data;
@@ -71,6 +74,7 @@ const AdminDashboard = () => {
 
       setStats({
         films: filmsRes.data.length,
+        cinemas: cinemasRes.data.length,
         salles: sallesRes.data.length,
         seances: seancesRes.data.length,
         reservations: reservations.length,
@@ -121,6 +125,14 @@ const AdminDashboard = () => {
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
       link: '/admin/films'
+    },
+    {
+      title: 'Cinémas',
+      value: stats.cinemas || 0,
+      icon: Room,
+      color: '#FFD700',
+      bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+      link: '/admin/cinemas'
     },
     {
       title: 'Salles',

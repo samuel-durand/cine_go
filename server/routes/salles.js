@@ -6,7 +6,14 @@ const router = express.Router();
 // Obtenir toutes les salles (public)
 router.get('/', async (req, res) => {
   try {
-    const salles = await Salle.find({ actif: true }).sort({ nom: 1 });
+    const query = { actif: true };
+    
+    // Filtrer par cinéma si fourni
+    if (req.query.cinemaId) {
+      query.cinema = req.query.cinemaId;
+    }
+    
+    const salles = await Salle.find(query).populate('cinema', 'nom ville').sort({ nom: 1 });
     res.json(salles);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -16,7 +23,14 @@ router.get('/', async (req, res) => {
 // Obtenir toutes les salles (admin - inclut les inactives)
 router.get('/all', auth, admin, async (req, res) => {
   try {
-    const salles = await Salle.find().sort({ nom: 1 });
+    const query = {};
+    
+    // Filtrer par cinéma si fourni
+    if (req.query.cinemaId) {
+      query.cinema = req.query.cinemaId;
+    }
+    
+    const salles = await Salle.find(query).populate('cinema', 'nom ville').sort({ nom: 1 });
     res.json(salles);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -26,7 +40,7 @@ router.get('/all', auth, admin, async (req, res) => {
 // Obtenir une salle par ID
 router.get('/:id', async (req, res) => {
   try {
-    const salle = await Salle.findById(req.params.id);
+    const salle = await Salle.findById(req.params.id).populate('cinema', 'nom ville adresse');
     if (!salle) {
       return res.status(404).json({ message: 'Salle non trouvée.' });
     }

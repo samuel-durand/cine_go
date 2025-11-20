@@ -13,12 +13,15 @@ const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const Films = lazy(() => import('./pages/Films'));
 const FilmDetail = lazy(() => import('./pages/FilmDetail'));
+const Cinemas = lazy(() => import('./pages/Cinemas'));
+const CinemaDetail = lazy(() => import('./pages/CinemaDetail'));
 const Reservation = lazy(() => import('./pages/Reservation'));
 const Ticket = lazy(() => import('./pages/Ticket'));
 const Profile = lazy(() => import('./pages/Profile'));
 const History = lazy(() => import('./pages/History'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminFilms = lazy(() => import('./pages/admin/AdminFilms'));
+const AdminCinemas = lazy(() => import('./pages/admin/AdminCinemas'));
 const AdminSalles = lazy(() => import('./pages/admin/AdminSalles'));
 const AdminSeances = lazy(() => import('./pages/admin/AdminSeances'));
 const AdminPlanning = lazy(() => import('./pages/admin/AdminPlanning'));
@@ -120,6 +123,8 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/films" element={<Films />} />
                 <Route path="/films/:id" element={<FilmDetail />} />
+                <Route path="/cinemas" element={<Cinemas />} />
+                <Route path="/cinemas/:id" element={<CinemaDetail />} />
               <Route
                 path="/reservation/:seanceId"
                 element={
@@ -165,6 +170,14 @@ function App() {
                   element={
                     <PrivateRoute adminOnly>
                       <AdminFilms />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/admin/cinemas"
+                  element={
+                    <PrivateRoute adminOnly>
+                      <AdminCinemas />
                     </PrivateRoute>
                   }
                 />

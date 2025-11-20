@@ -28,10 +28,12 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const AdminSalles = () => {
   const [salles, setSalles] = useState([]);
+  const [cinemas, setCinemas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingSalle, setEditingSalle] = useState(null);
   const [formData, setFormData] = useState({
+    cinema: '',
     nom: '',
     type: 'classic',
     capacite: 100,
@@ -42,11 +44,15 @@ const AdminSalles = () => {
 
   useEffect(() => {
     fetchSalles();
+    fetchCinemas();
   }, []);
 
   const fetchSalles = async () => {
     try {
-      const response = await axios.get(`${API_URL}/salles/all`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/salles/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setSalles(response.data);
       setLoading(false);
     } catch (error) {
@@ -55,16 +61,30 @@ const AdminSalles = () => {
     }
   };
 
+  const fetchCinemas = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/cinemas/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setCinemas(response.data.filter(c => c.actif));
+    } catch (error) {
+      console.error('Erreur lors du chargement des cinémas:', error);
+    }
+  };
+
   const handleOpen = (salle = null) => {
     if (salle) {
       setEditingSalle(salle);
       setFormData({
         ...salle,
+        cinema: salle.cinema?._id || salle.cinema || '',
         equipements: salle.equipements?.join(', ') || ''
       });
     } else {
       setEditingSalle(null);
       setFormData({
+        cinema: '',
         nom: '',
         type: 'classic',
         capacite: 100,
@@ -84,6 +104,7 @@ const AdminSalles = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('token');
       const data = {
         ...formData,
         capacite: parseInt(formData.capacite),
@@ -91,24 +112,33 @@ const AdminSalles = () => {
       };
 
       if (editingSalle) {
-        await axios.put(`${API_URL}/salles/${editingSalle._id}`, data);
+        await axios.put(`${API_URL}/salles/${editingSalle._id}`, data, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       } else {
-        await axios.post(`${API_URL}/salles`, data);
+        await axios.post(`${API_URL}/salles`, data, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       }
       fetchSalles();
       handleClose();
     } catch (error) {
       console.error('Erreur:', error);
+      alert(error.response?.data?.message || 'Erreur lors de l\'enregistrement');
     }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette salle ?')) {
       try {
-        await axios.delete(`${API_URL}/salles/${id}`);
+        const token = localStorage.getItem('token');
+        await axios.delete(`${API_URL}/salles/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         fetchSalles();
       } catch (error) {
         console.error('Erreur:', error);
+        alert(error.response?.data?.message || 'Erreur lors de la suppression');
       }
     }
   };
@@ -164,6 +194,7 @@ const AdminSalles = () => {
           <TableHead>
             <TableRow>
               <TableCell>Nom</TableCell>
+              <TableCell>Cinéma</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>Capacité</TableCell>
               <TableCell>Description</TableCell>
@@ -175,6 +206,7 @@ const AdminSalles = () => {
             {salles.map((salle) => (
               <TableRow key={salle._id}>
                 <TableCell>{salle.nom}</TableCell>
+                <TableCell>{salle.cinema?.nom || 'N/A'}</TableCell>
                 <TableCell>
                   <Chip
                     label={getTypeLabel(salle.type)}
@@ -212,6 +244,20 @@ const AdminSalles = () => {
         <form onSubmit={handleSubmit}>
           <DialogContent>
             <Box className="space-y-4">
+              <TextField
+                fullWidth
+                select
+                label="Cinéma"
+                value={formData.cinema}
+                onChange={(e) => setFormData({ ...formData, cinema: e.target.value })}
+                required
+              >
+                {cinemas.map((cinema) => (
+                  <MenuItem key={cinema._id} value={cinema._id}>
+                    {cinema.nom} - {cinema.ville}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
                 fullWidth
                 label="Nom de la salle"

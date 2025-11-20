@@ -106,6 +106,30 @@ const Home = () => {
             >
               Découvrir les films
             </Button>
+            <Button
+              component={Link}
+              to="/cinemas"
+              variant="outlined"
+              size="large"
+              sx={{
+                borderColor: '#FFD700',
+                color: '#FFD700',
+                padding: '14px 32px',
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                textTransform: 'none',
+                borderRadius: '8px',
+                '&:hover': {
+                  borderColor: '#FFD700',
+                  backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 8px 16px rgba(255, 215, 0, 0.2)',
+                },
+                transition: 'all 0.3s ease',
+              }}
+            >
+              Choisir un cinéma
+            </Button>
           </Box>
         </Container>
       </Box>

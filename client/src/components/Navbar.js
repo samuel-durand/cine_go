@@ -85,6 +85,20 @@ const Navbar = () => {
           >
             Films
           </Button>
+          <Button 
+            component={Link} 
+            to="/cinemas"
+            sx={{ 
+              color: '#FFFFFF',
+              textTransform: 'none',
+              fontWeight: 500,
+              '&:hover': {
+                backgroundColor: 'rgba(255, 215, 0, 0.1)',
+              },
+            }}
+          >
+            Cinémas
+          </Button>
           
           {user ? (
             <>

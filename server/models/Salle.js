@@ -65,10 +65,14 @@ const planSchema = new mongoose.Schema(
 );
 
 const salleSchema = new mongoose.Schema({
+  cinema: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Cinema',
+    required: true
+  },
   nom: {
     type: String,
     required: true,
-    unique: true,
     trim: true
   },
   type: {

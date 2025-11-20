@@ -29,7 +29,9 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 const AdminSeances = () => {
   const [seances, setSeances] = useState([]);
   const [films, setFilms] = useState([]);
+  const [cinemas, setCinemas] = useState([]);
   const [salles, setSalles] = useState([]);
+  const [selectedCinema, setSelectedCinema] = useState('');
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingSeance, setEditingSeance] = useState(null);
@@ -45,12 +47,16 @@ const AdminSeances = () => {
   useEffect(() => {
     fetchSeances();
     fetchFilms();
-    fetchSalles();
+    fetchCinemas();
   }, []);
+
 
   const fetchSeances = async () => {
     try {
-      const response = await axios.get(`${API_URL}/seances/all`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/seances/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setSeances(response.data);
       setLoading(false);
     } catch (error) {
@@ -61,8 +67,23 @@ const AdminSeances = () => {
 
   const fetchFilms = async () => {
     try {
-      const response = await axios.get(`${API_URL}/films/all`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/films/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setFilms(response.data.filter(f => f.actif));
+    } catch (error) {
+      console.error('Erreur:', error);
+    }
+  };
+
+  const fetchCinemas = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/cinemas/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setCinemas(response.data.filter(c => c.actif));
     } catch (error) {
       console.error('Erreur:', error);
     }
@@ -70,34 +91,72 @@ const AdminSeances = () => {
 
   const fetchSalles = async () => {
     try {
-      const response = await axios.get(`${API_URL}/salles/all`);
+      const token = localStorage.getItem('token');
+      const url = selectedCinema 
+        ? `${API_URL}/salles/all?cinemaId=${selectedCinema}`
+        : `${API_URL}/salles/all`;
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setSalles(response.data.filter(s => s.actif));
+      // Réinitialiser la sélection de salle si elle n'est plus disponible
+      if (formData.salle && !response.data.find(s => s._id === formData.salle)) {
+        setFormData({ ...formData, salle: '' });
+      }
     } catch (error) {
       console.error('Erreur:', error);
     }
   };
 
-  const handleOpen = (seance = null) => {
+  const handleOpen = async (seance = null) => {
     if (seance) {
       setEditingSeance(seance);
+      const salleId = seance.salle?._id || seance.salle || '';
+      let cinemaId = '';
+      
+      // Si la salle a un cinéma directement
+      if (seance.salle?.cinema?._id || seance.salle?.cinema) {
+        cinemaId = seance.salle.cinema._id || seance.salle.cinema;
+      } else if (salleId) {
+        // Sinon, récupérer la salle pour obtenir le cinéma
+        try {
+          const token = localStorage.getItem('token');
+          const salleResponse = await axios.get(`${API_URL}/salles/${salleId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          cinemaId = salleResponse.data.cinema?._id || salleResponse.data.cinema || '';
+        } catch (error) {
+          console.error('Erreur lors de la récupération de la salle:', error);
+        }
+      }
+      
+      setSelectedCinema(cinemaId);
       setFormData({
         film: seance.film._id || seance.film,
+        cinema: cinemaId,
         date: seance.date ? new Date(seance.date).toISOString().split('T')[0] : '',
         heure: seance.heure || '',
-        salle: seance.salle?._id || seance.salle || '',
+        salle: salleId,
         placesTotal: seance.placesTotal || 100,
         prix: seance.prix || ''
       });
+      
+      // Charger les salles du cinéma
+      if (cinemaId) {
+        await fetchSalles(cinemaId);
+      }
     } else {
       setEditingSeance(null);
       setFormData({
         film: '',
+        cinema: '',
         date: '',
         heure: '',
         salle: '',
         placesTotal: 100,
         prix: ''
       });
+      setSelectedCinema('');
     }
     setOpen(true);
   };
@@ -110,31 +169,44 @@ const AdminSeances = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('token');
       const data = {
         ...formData,
         placesTotal: parseInt(formData.placesTotal),
         prix: parseFloat(formData.prix)
       };
+      
+      // Ne pas envoyer cinema dans les données, seulement la salle
+      delete data.cinema;
 
       if (editingSeance) {
-        await axios.put(`${API_URL}/seances/${editingSeance._id}`, data);
+        await axios.put(`${API_URL}/seances/${editingSeance._id}`, data, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       } else {
-        await axios.post(`${API_URL}/seances`, data);
+        await axios.post(`${API_URL}/seances`, data, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       }
       fetchSeances();
       handleClose();
     } catch (error) {
       console.error('Erreur:', error);
+      alert(error.response?.data?.message || 'Erreur lors de l\'enregistrement');
     }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette séance ?')) {
       try {
-        await axios.delete(`${API_URL}/seances/${id}`);
+        const token = localStorage.getItem('token');
+        await axios.delete(`${API_URL}/seances/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         fetchSeances();
       } catch (error) {
         console.error('Erreur:', error);
+        alert(error.response?.data?.message || 'Erreur lors de la suppression');
       }
     }
   };
@@ -157,6 +229,23 @@ const AdminSeances = () => {
         <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>
           Ajouter une séance
         </Button>
+      </Box>
+
+      <Box sx={{ mb: 4 }}>
+        <TextField
+          select
+          label="Filtrer par cinéma"
+          value={selectedCinema}
+          onChange={(e) => setSelectedCinema(e.target.value)}
+          sx={{ minWidth: 300 }}
+        >
+          <MenuItem value="">Tous les cinémas</MenuItem>
+          {cinemas.map((cinema) => (
+            <MenuItem key={cinema._id} value={cinema._id}>
+              {cinema.nom} - {cinema.ville}
+            </MenuItem>
+          ))}
+        </TextField>
       </Box>
 
       <TableContainer component={Paper}>
@@ -224,6 +313,25 @@ const AdminSeances = () => {
               <TextField
                 fullWidth
                 select
+                label="Cinéma"
+                value={formData.cinema || ''}
+                onChange={async (e) => {
+                  const cinemaId = e.target.value;
+                  setFormData({ ...formData, cinema: cinemaId, salle: '' });
+                  setSelectedCinema(cinemaId);
+                  await fetchSalles(cinemaId);
+                }}
+                required
+              >
+                {cinemas.map((cinema) => (
+                  <MenuItem key={cinema._id} value={cinema._id}>
+                    {cinema.nom} - {cinema.ville}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                fullWidth
+                select
                 label="Film"
                 value={formData.film}
                 onChange={(e) => setFormData({ ...formData, film: e.target.value })}
@@ -287,12 +395,19 @@ const AdminSeances = () => {
                   });
                 }}
                 required
+                disabled={!formData.cinema || salles.length === 0}
               >
-                {salles.map((salle) => (
-                  <MenuItem key={salle._id} value={salle._id}>
-                    {salle.nom} - {salle.type} ({salle.capacite} places)
+                {salles.length === 0 ? (
+                  <MenuItem disabled>
+                    {formData.cinema ? 'Aucune salle disponible pour ce cinéma' : 'Sélectionnez d\'abord un cinéma'}
                   </MenuItem>
-                ))}
+                ) : (
+                  salles.map((salle) => (
+                    <MenuItem key={salle._id} value={salle._id}>
+                      {salle.nom} - {salle.type} ({salle.capacite} places)
+                    </MenuItem>
+                  ))
+                )}
               </TextField>
               <TextField
                 fullWidth
