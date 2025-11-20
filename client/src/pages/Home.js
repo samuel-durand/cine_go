@@ -126,14 +126,17 @@ const Home = () => {
                     width: 80,
                     height: 80,
                     borderRadius: '50%',
-                    backgroundColor: '#FFD700',
+                    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 215, 0, 0.3)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 24px',
+                    boxShadow: '0 4px 16px rgba(255, 215, 0, 0.2)',
                   }}
                 >
-                  <LocalMovies sx={{ fontSize: 40, color: '#000000' }} />
+                  <LocalMovies sx={{ fontSize: 40, color: '#FFD700' }} />
                 </Box>
                 <Typography variant="h5" sx={{ fontWeight: 600, marginBottom: 2, color: '#FFFFFF' }}>
                   Large sélection
@@ -150,14 +153,17 @@ const Home = () => {
                     width: 80,
                     height: 80,
                     borderRadius: '50%',
-                    backgroundColor: '#FFD700',
+                    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 215, 0, 0.3)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 24px',
+                    boxShadow: '0 4px 16px rgba(255, 215, 0, 0.2)',
                   }}
                 >
-                  <AccessTime sx={{ fontSize: 40, color: '#000000' }} />
+                  <AccessTime sx={{ fontSize: 40, color: '#FFD700' }} />
                 </Box>
                 <Typography variant="h5" sx={{ fontWeight: 600, marginBottom: 2, color: '#FFFFFF' }}>
                   Réservation rapide
@@ -174,14 +180,17 @@ const Home = () => {
                     width: 80,
                     height: 80,
                     borderRadius: '50%',
-                    backgroundColor: '#FFD700',
+                    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 215, 0, 0.3)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 24px',
+                    boxShadow: '0 4px 16px rgba(255, 215, 0, 0.2)',
                   }}
                 >
-                  <Star sx={{ fontSize: 40, color: '#000000' }} />
+                  <Star sx={{ fontSize: 40, color: '#FFD700' }} />
                 </Box>
                 <Typography variant="h5" sx={{ fontWeight: 600, marginBottom: 2, color: '#FFFFFF' }}>
                   Expérience premium
@@ -231,15 +240,18 @@ const Home = () => {
                 <Card
                   sx={{
                     height: '100%',
-                    backgroundColor: '#1a1a1a',
-                    border: '1px solid rgba(255, 215, 0, 0.2)',
-                    borderRadius: '12px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '16px',
                     overflow: 'hidden',
                     transition: 'all 0.3s ease',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
                     '&:hover': {
                       transform: 'translateY(-8px)',
-                      borderColor: '#FFD700',
-                      boxShadow: '0 12px 24px rgba(255, 215, 0, 0.2)',
+                      borderColor: 'rgba(255, 215, 0, 0.5)',
+                      boxShadow: '0 12px 40px rgba(255, 215, 0, 0.3)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
                     },
                   }}
                 >
@@ -263,7 +275,7 @@ const Home = () => {
                         <Movie sx={{ fontSize: 80, color: '#666666' }} />
                       </Box>
                     )}
-                    <CardContent sx={{ padding: 3, backgroundColor: '#1a1a1a' }}>
+                    <CardContent sx={{ padding: 3, backgroundColor: 'transparent' }}>
                       <Typography
                         variant="h6"
                         component="h2"

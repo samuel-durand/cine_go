@@ -83,16 +83,19 @@ const Films = () => {
         sx={{
           mb: 6,
           '& .MuiOutlinedInput-root': {
-            backgroundColor: '#1a1a1a',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            backdropFilter: 'blur(10px)',
             color: '#FFFFFF',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
             '&:hover fieldset': {
-              borderColor: '#FFD700',
+              borderColor: 'rgba(255, 215, 0, 0.5)',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#FFD700',
+              borderColor: 'rgba(255, 215, 0, 0.7)',
             },
             '& fieldset': {
-              borderColor: 'rgba(255, 215, 0, 0.3)',
+              borderColor: 'rgba(255, 255, 255, 0.1)',
             },
           },
         }}
@@ -119,15 +122,18 @@ const Films = () => {
               <Card
                 sx={{
                   height: '100%',
-                  backgroundColor: '#1a1a1a',
-                  border: '1px solid rgba(255, 215, 0, 0.2)',
-                  borderRadius: '12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '16px',
                   overflow: 'hidden',
                   transition: 'all 0.3s ease',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
                   '&:hover': {
                     transform: 'translateY(-8px)',
-                    borderColor: '#FFD700',
-                    boxShadow: '0 12px 24px rgba(255, 215, 0, 0.2)',
+                    borderColor: 'rgba(255, 215, 0, 0.5)',
+                    boxShadow: '0 12px 40px rgba(255, 215, 0, 0.3)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
                   },
                 }}
               >
@@ -150,7 +156,7 @@ const Films = () => {
                       <Movie sx={{ fontSize: 80, color: 'grey.400' }} />
                     </Box>
                   )}
-                  <CardContent sx={{ padding: 3, backgroundColor: '#1a1a1a' }}>
+                  <CardContent sx={{ padding: 3, backgroundColor: 'transparent' }}>
                     <Typography
                       variant="h6"
                       component="h2"

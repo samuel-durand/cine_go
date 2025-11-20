@@ -104,6 +104,24 @@ cine-go/
 - ✅ Profil utilisateur (modification des informations)
 - ✅ Historique des réservations
 
+## ✨ Nouveautés récentes
+
+### Design moderne avec Glassmorphisme
+- 🎨 **Effet glassmorphisme** appliqué sur toutes les cartes et divs principales
+  - Fond semi-transparent avec effet de flou (`backdrop-filter: blur(10px)`)
+  - Bordures subtiles et ombres élégantes
+  - Application sur les pages : Films, Home, FilmDetail, Reservation
+  - Design moderne et épuré avec une esthétique premium
+
+### Amélioration du processus de réservation
+- 🔄 **Processus en deux étapes** pour une meilleure expérience utilisateur :
+  1. **Étape 1 : Choix des places** - Sélection des sièges ou nombre de places
+  2. **Étape 2 : Paiement** - Saisie des informations de carte bancaire avec bouton retour
+- 💳 **Amélioration du formulaire de paiement** :
+  - Texte blanc pour les informations de carte bancaire
+  - Design glassmorphisme pour la section de paiement
+  - Interface plus claire et intuitive
+
 ### Administrateur
 - ✅ Tableau de bord avec statistiques
 - ✅ Gestion des films (CRUD)

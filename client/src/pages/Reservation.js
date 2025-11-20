@@ -29,7 +29,7 @@ const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
 const CARD_ELEMENT_OPTIONS = {
   style: {
     base: {
-      color: '#1f2937',
+      color: '#ffffff',
       fontFamily: '"Roboto", "Helvetica Neue", sans-serif',
       fontSmoothing: 'antialiased',
       fontSize: '16px',
@@ -57,6 +57,7 @@ const ReservationContent = () => {
   const [cardError, setCardError] = useState('');
   const [success, setSuccess] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [step, setStep] = useState(1); // 1: choix des places, 2: paiement
 
   const fetchSeance = useCallback(async () => {
     try {
@@ -83,6 +84,29 @@ const ReservationContent = () => {
       return [...prev, seat];
     });
     setError('');
+  };
+
+  const handleContinueToPayment = () => {
+    setError('');
+    const hasSeatMap = seance?.plan?.rows?.length > 0;
+    const seatsCount = hasSeatMap ? selectedSeats.length : nombrePlaces;
+
+    if (hasSeatMap && selectedSeats.length === 0) {
+      setError('Veuillez sélectionner au moins un siège.');
+      return;
+    }
+
+    if (seatsCount > seance.placesDisponibles) {
+      setError('Pas assez de places disponibles.');
+      return;
+    }
+
+    if (seatsCount === 0) {
+      setError('Veuillez sélectionner au moins une place.');
+      return;
+    }
+
+    setStep(2);
   };
 
   const handleReservation = async (e) => {
@@ -219,8 +243,16 @@ const ReservationContent = () => {
 
       <Grid container spacing={4}>
         <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
+          <Card
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            <CardContent sx={{ backgroundColor: 'transparent' }}>
               <Typography variant="h5" className="mb-4 font-semibold">
                 {seance.film?.titre || 'Film'}
               </Typography>
@@ -244,104 +276,162 @@ const ReservationContent = () => {
                 </Typography>
               </Box>
 
-              <form onSubmit={handleReservation}>
-                {hasSeatMap ? (
-                  <Box className="mb-4">
-                    <Typography variant="subtitle1" className="mb-2 font-semibold">
-                      Choisissez vos sièges
-                    </Typography>
-                    <Box 
-                      sx={{ 
-                        width: '100%',
-                        overflow: 'auto',
-                        maxHeight: '70vh',
-                      }}
-                    >
-                      <SeatMap
-                        plan={seance.plan}
-                        reservedSeats={reservedSeats}
-                        selectedSeats={selectedSeats}
-                        onToggleSeat={handleSeatToggle}
-                      />
-                    </Box>
-                    {selectedSeats.length > 0 && (
-                      <Box className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                        <Typography variant="body2" className="mb-2 font-semibold text-green-800">
-                          Sièges sélectionnés ({selectedSeats.length}):
-                        </Typography>
-                        <Box className="flex flex-wrap gap-2">
-                          {selectedSeats.map((seat) => (
-                            <Chip
-                              key={seat.seatId}
-                              label={`${seat.label}`}
-                              onDelete={() => handleSeatToggle(seat)}
-                              color="success"
-                              size="small"
-                              sx={{ fontWeight: 'bold' }}
-                            />
-                          ))}
-                        </Box>
-                        <Typography variant="caption" className="mt-2 block text-green-700">
-                          Vous pouvez sélectionner des sièges séparés en cliquant sur plusieurs sièges libres.
-                        </Typography>
+              {step === 1 ? (
+                <>
+                  {hasSeatMap ? (
+                    <Box className="mb-4">
+                      <Typography variant="subtitle1" className="mb-2 font-semibold">
+                        Choisissez vos sièges
+                      </Typography>
+                      <Box 
+                        sx={{ 
+                          width: '100%',
+                          overflow: 'auto',
+                          maxHeight: '70vh',
+                        }}
+                      >
+                        <SeatMap
+                          plan={seance.plan}
+                          reservedSeats={reservedSeats}
+                          selectedSeats={selectedSeats}
+                          onToggleSeat={handleSeatToggle}
+                        />
                       </Box>
-                    )}
+                      {selectedSeats.length > 0 && (
+                        <Box 
+                          className="mt-4 p-3 rounded-lg"
+                          sx={{
+                            backgroundColor: 'rgba(76, 175, 80, 0.15)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(76, 175, 80, 0.3)',
+                            borderRadius: '16px',
+                            boxShadow: '0 4px 16px rgba(76, 175, 80, 0.2)',
+                          }}
+                        >
+                          <Typography variant="body2" className="mb-2 font-semibold" sx={{ color: '#4CAF50' }}>
+                            Sièges sélectionnés ({selectedSeats.length}):
+                          </Typography>
+                          <Box className="flex flex-wrap gap-2">
+                            {selectedSeats.map((seat) => (
+                              <Chip
+                                key={seat.seatId}
+                                label={`${seat.label}`}
+                                onDelete={() => handleSeatToggle(seat)}
+                                color="success"
+                                size="small"
+                                sx={{ fontWeight: 'bold' }}
+                              />
+                            ))}
+                          </Box>
+                          <Typography variant="caption" className="mt-2 block" sx={{ color: '#81C784' }}>
+                            Vous pouvez sélectionner des sièges séparés en cliquant sur plusieurs sièges libres.
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  ) : (
+                    <TextField
+                      fullWidth
+                      label="Nombre de places"
+                      type="number"
+                      value={nombrePlaces}
+                      onChange={(e) => {
+                        const value = Math.max(
+                          1,
+                          Math.min(seance.placesDisponibles, parseInt(e.target.value, 10) || 1)
+                        );
+                        setNombrePlaces(value);
+                      }}
+                      inputProps={{ min: 1, max: seance.placesDisponibles }}
+                      className="mb-4"
+                      required
+                    />
+                  )}
+
+                  {error && (
+                    <Alert severity="error" className="mb-4">
+                      {error}
+                    </Alert>
+                  )}
+
+                  <Box className="flex gap-3">
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      size="large"
+                      onClick={handleContinueToPayment}
+                      disabled={!canSubmit || seance.placesDisponibles === 0}
+                    >
+                      Continuer vers le paiement
+                    </Button>
                   </Box>
-                ) : (
-                  <TextField
-                    fullWidth
-                    label="Nombre de places"
-                    type="number"
-                    value={nombrePlaces}
-                    onChange={(e) => {
-                      const value = Math.max(
-                        1,
-                        Math.min(seance.placesDisponibles, parseInt(e.target.value, 10) || 1)
-                      );
-                      setNombrePlaces(value);
+                </>
+              ) : (
+                <form onSubmit={handleReservation}>
+                  <Box 
+                    className="mb-4 p-4 rounded-lg"
+                    sx={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '16px',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
                     }}
-                    inputProps={{ min: 1, max: seance.placesDisponibles }}
-                    className="mb-4"
-                    required
-                  />
-                )}
+                  >
+                    <Typography variant="subtitle1" className="mb-2 font-semibold" sx={{ color: '#FFFFFF' }}>
+                      Informations de paiement
+                    </Typography>
+                    <CardElement options={CARD_ELEMENT_OPTIONS} onChange={(event) => setCardError(event.error?.message || '')} />
+                  </Box>
 
-                <Box className="mb-4 p-4 border rounded-lg">
-                  <Typography variant="subtitle1" className="mb-2 font-semibold">
-                    Informations de paiement
-                  </Typography>
-                  <CardElement options={CARD_ELEMENT_OPTIONS} onChange={(event) => setCardError(event.error?.message || '')} />
-                </Box>
+                  {cardError && (
+                    <Alert severity="error" className="mb-4">
+                      {cardError}
+                    </Alert>
+                  )}
 
-                {cardError && (
-                  <Alert severity="error" className="mb-4">
-                    {cardError}
-                  </Alert>
-                )}
+                  {error && (
+                    <Alert severity="error" className="mb-4">
+                      {error}
+                    </Alert>
+                  )}
 
-                {error && (
-                  <Alert severity="error" className="mb-4">
-                    {error}
-                  </Alert>
-                )}
-
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  size="large"
-                  disabled={!canSubmit || seance.placesDisponibles === 0 || processing}
-                >
-                  {processing ? 'Traitement en cours...' : 'Payer et confirmer'}
-                </Button>
-              </form>
+                  <Box className="flex gap-3">
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      onClick={() => setStep(1)}
+                      disabled={processing}
+                    >
+                      Retour
+                    </Button>
+                    <Button
+                      type="submit"
+                      fullWidth
+                      variant="contained"
+                      size="large"
+                      disabled={processing}
+                    >
+                      {processing ? 'Traitement en cours...' : 'Payer et confirmer'}
+                    </Button>
+                  </Box>
+                </form>
+              )}
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
+          <Card
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            <CardContent sx={{ backgroundColor: 'transparent' }}>
               <Typography variant="h6" className="mb-4 font-semibold">
                 Récapitulatif
               </Typography>

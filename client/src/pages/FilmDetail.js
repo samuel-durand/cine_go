@@ -99,12 +99,24 @@ const FilmDetail = () => {
       <Container maxWidth="lg">
         <Grid container spacing={4}>
           <Grid item xs={12} md={4}>
-          <Box className="mb-4">
+          <Box 
+            className="mb-4"
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              p: 2,
+            }}
+          >
             {film.image ? (
               <img
                 src={film.image}
                 alt={film.titre}
-                className="w-full rounded-lg shadow-lg"
+                className="w-full rounded-lg"
+                style={{ borderRadius: '12px' }}
               />
             ) : (
               <Box
@@ -112,10 +124,12 @@ const FilmDetail = () => {
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
-                bgcolor="grey.200"
-                className="rounded-lg"
+                sx={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '12px',
+                }}
               >
-                <Typography variant="h6" color="textSecondary">
+                <Typography variant="h6" sx={{ color: '#CCCCCC' }}>
                   Image non disponible
                 </Typography>
               </Box>
@@ -124,24 +138,35 @@ const FilmDetail = () => {
         </Grid>
 
         <Grid item xs={12} md={8}>
-          <Typography variant="h3" component="h1" className="mb-4 font-bold">
-            {film.titre}
-          </Typography>
+          <Box
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              padding: 4,
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              mb: 4,
+            }}
+          >
+            <Typography variant="h3" component="h1" className="mb-4 font-bold" sx={{ color: '#FFFFFF' }}>
+              {film.titre}
+            </Typography>
 
-          <Box className="mb-4 flex flex-wrap gap-2">
-            <Chip label={film.genre} color="primary" />
-            <Chip label={`${film.duree} min`} />
-            <Chip label={`Note: ${film.note}/10`} />
-          </Box>
+            <Box className="mb-4 flex flex-wrap gap-2">
+              <Chip label={film.genre} color="primary" />
+              <Chip label={`${film.duree} min`} />
+              <Chip label={`Note: ${film.note}/10`} />
+            </Box>
 
-          <Typography variant="h6" className="mb-2 font-semibold">
-            Description
-          </Typography>
-          <Typography variant="body1" className="mb-4 text-gray-700">
-            {film.description}
-          </Typography>
+            <Typography variant="h6" className="mb-2 font-semibold" sx={{ color: '#FFD700' }}>
+              Description
+            </Typography>
+            <Typography variant="body1" className="mb-4" sx={{ color: '#CCCCCC' }}>
+              {film.description}
+            </Typography>
 
-          <Grid container spacing={2} className="mb-4">
+            <Grid container spacing={2} className="mb-4">
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">
                 Réalisateur
@@ -169,6 +194,7 @@ const FilmDetail = () => {
               </Grid>
             )}
           </Grid>
+          </Box>
         </Grid>
       </Grid>
 
@@ -194,15 +220,18 @@ const FilmDetail = () => {
               sx={{
                 '& .MuiOutlinedInput-root': {
                   color: '#FFFFFF',
-                  backgroundColor: '#1a1a1a',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
                   '& fieldset': {
-                    borderColor: 'rgba(255, 215, 0, 0.3)',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
                   },
                   '&:hover fieldset': {
-                    borderColor: '#FFD700',
+                    borderColor: 'rgba(255, 215, 0, 0.5)',
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#FFD700',
+                    borderColor: 'rgba(255, 215, 0, 0.7)',
                   },
                 },
                 '& .MuiInputLabel-root': {
@@ -222,8 +251,21 @@ const FilmDetail = () => {
           </Alert>
         ) : (
           Object.entries(groupedSeances).map(([key, { salle, seances: seancesSalle }]) => (
-            <Card key={key} className="mb-4">
-              <CardContent>
+            <Card 
+              key={key} 
+              className="mb-4"
+              sx={{
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '16px',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                '&:hover': {
+                  borderColor: 'rgba(255, 215, 0, 0.3)',
+                },
+              }}
+            >
+              <CardContent sx={{ backgroundColor: 'transparent' }}>
                 <Typography variant="h6" className="mb-3 font-semibold">
                   <Room className="mr-2" /> 
                   {salle?.nom || 'Salle inconnue'}
