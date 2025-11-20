@@ -102,6 +102,9 @@ router.post('/validate', auth, async (req, res) => {
 // Obtenir les informations d'un billet (pour affichage)
 router.get('/:id', auth, async (req, res) => {
   try {
+    const Salle = require('../models/Salle');
+    const Cinema = require('../models/Cinema');
+    
     const reservation = await Reservation.findById(req.params.id)
       .populate('user', 'nom prenom email')
       .populate('seance')
@@ -111,7 +114,15 @@ router.get('/:id', auth, async (req, res) => {
       })
       .populate({
         path: 'seance',
-        populate: { path: 'salle', select: 'nom type' }
+        populate: {
+          path: 'salle',
+          select: 'nom type cinema',
+          populate: {
+            path: 'cinema',
+            model: Cinema,
+            select: 'nom ville adresse codePostal telephone'
+          }
+        }
       });
 
     if (!reservation) {

@@ -317,26 +317,28 @@ const Ticket = () => {
       </Paper>
 
       {/* Styles pour l'impression */}
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            .print\\:p-4,
+            .print\\:p-4 * {
+              visibility: visible;
+            }
+            .print\\:p-4 {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+            }
+            button {
+              display: none !important;
+            }
           }
-          .print\\:p-4,
-          .print\\:p-4 * {
-            visibility: visible;
-          }
-          .print\\:p-4 {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          button {
-            display: none !important;
-          }
-        }
-      `}</style>
+        `
+      }} />
     </Container>
   );
 };

@@ -77,6 +77,10 @@ const SeatMap = ({
   const isLargeHall = totalSeats > 150;
   const seatSize = isLargeHall ? 28 : 36;
   const seatGap = isLargeHall ? '2px' : '4px';
+  
+  // Trouver le nombre maximum de sièges dans une rangée pour calculer la largeur de l'écran
+  const maxSeatsPerRow = plan?.rows?.reduce((max, row) => Math.max(max, row.seats?.length || 0), 0) || 0;
+  const seatAreaWidth = maxSeatsPerRow * (seatSize + (parseInt(seatGap) || 4)) + parseInt(seatGap);
 
   return (
     <Box className="w-full">
@@ -91,15 +95,16 @@ const SeatMap = ({
         }}
       >
         {/* Rangées principales */}
-        <Box className="space-y-2" sx={{ minWidth: 'fit-content' }}>
+        <Box className="space-y-2" sx={{ minWidth: 'fit-content', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           {blocks.map((block, blockIndex) => (
-            <Box key={blockIndex} className="flex flex-col items-center space-y-2">
+            <Box key={blockIndex} className="flex flex-col items-center space-y-2" sx={{ width: '100%' }}>
               {block.map((row) => (
-                <Box key={row.name} className="flex items-center gap-2">
+                <Box key={row.name} className="flex items-center gap-2" sx={{ width: '100%', justifyContent: 'center' }}>
                   {/* Label de la rangée */}
                   <Typography
                     variant="body2"
                     className="font-bold text-gray-700 w-8 text-center"
+                    sx={{ flexShrink: 0 }}
                   >
                     {row.name}
                   </Typography>
@@ -107,7 +112,7 @@ const SeatMap = ({
                   {/* Sièges de la rangée */}
                   <Box 
                     className="flex"
-                    sx={{ gap: seatGap, flexWrap: 'wrap' }}
+                    sx={{ gap: seatGap, flexWrap: 'nowrap', justifyContent: 'center' }}
                   >
                     {row.seats?.map((seat) => {
                       const isReserved = reservedSet.has(seat.seatId);
@@ -258,15 +263,18 @@ const SeatMap = ({
           ))}
         </Box>
 
-        {/* Écran en bas */}
-        <Box className="mt-8 flex justify-center">
+        {/* Écran en bas - centré par rapport aux sièges (sans les labels) */}
+        <Box className="mt-8 flex justify-center" sx={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>
           <Box
             sx={{
-              width: '60%',
+              width: `${seatAreaWidth}px`,
+              minWidth: '200px',
+              maxWidth: '80%',
               height: 8,
               backgroundColor: '#fbbf24',
               borderRadius: '8px 8px 0 0',
               position: 'relative',
+              marginLeft: '40px', // Compenser le label de rangée (w-8 = 32px + gap)
               '&::before': {
                 content: '"Écran"',
                 position: 'absolute',
@@ -299,7 +307,7 @@ const SeatMap = ({
           >
             <CheckCircle sx={{ fontSize: 14, color: '#ffffff' }} />
           </Box>
-          <Typography variant="body2">Mes places</Typography>
+          <Typography variant="body2" sx={{ color: '#000000' }}>Mes places</Typography>
         </Box>
         
         <Box className="flex items-center gap-2">
@@ -312,7 +320,7 @@ const SeatMap = ({
               border: '2px solid #f59e0b',
             }}
           />
-          <Typography variant="body2">Places libres</Typography>
+          <Typography variant="body2" sx={{ color: '#000000' }}>Places libres</Typography>
         </Box>
         
         <Box className="flex items-center gap-2">
@@ -332,7 +340,7 @@ const SeatMap = ({
               👤
             </Typography>
           </Box>
-          <Typography variant="body2">Places occupées</Typography>
+          <Typography variant="body2" sx={{ color: '#000000' }}>Places occupées</Typography>
         </Box>
         
         <Box className="flex items-center gap-2">
@@ -350,7 +358,7 @@ const SeatMap = ({
           >
             <Accessibility sx={{ fontSize: 14, color: '#ffffff' }} />
           </Box>
-          <Typography variant="body2">Accessible</Typography>
+          <Typography variant="body2" sx={{ color: '#000000' }}>Accessible</Typography>
         </Box>
       </Box>
     </Box>
