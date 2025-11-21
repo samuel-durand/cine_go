@@ -26,8 +26,9 @@ export default defineConfig({
     },
   },
   preview: {
-    port: parseInt(process.env.PORT) || 4173,
+    port: process.env.PORT ? parseInt(process.env.PORT) : 4173,
     host: '0.0.0.0',
+    strictPort: false,
     allowedHosts: [
       'cinego-front.up.railway.app',
       '.railway.app',
