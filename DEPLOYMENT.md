@@ -2,6 +2,19 @@
 
 Ce guide explique comment déployer l'application CineGo (frontend et backend) sur Railway.
 
+## ⚠️ Important : Structure des Branches
+
+- **Branche `main`** : Structure complète avec `server/` et `client/` pour le développement local
+  - Utilisez cette branche pour développer en local avec `npm run dev`
+  - Le dossier `server/` est conservé pour la compatibilité avec le développement local
+  
+- **Branche `backend`** : Backend simplifié (tout à la racine) pour le déploiement Railway
+  - Cette branche a été créée spécialement pour Railway
+  - Tous les fichiers du serveur sont à la racine (pas de dossier `server/`)
+  - Railway ne prendra pas en compte le dossier `server/` car il utilise cette branche
+  
+- **Railway doit utiliser la branche `backend`** pour déployer le serveur (pas `main`)
+
 ## 🚀 Options de Déploiement
 
 Vous avez deux options pour déployer sur Railway :
@@ -32,17 +45,19 @@ Vous avez deux options pour déployer sur Railway :
 2. Cliquez sur "New" → "GitHub Repo" et sélectionnez votre dépôt
 3. Ajoutez un nouveau service en cliquant sur "+ New"
 4. Sélectionnez "GitHub Repo" et choisissez votre dépôt
-5. Dans les paramètres du service :
-   - **Root Directory** : `server` ⚠️ **IMPORTANT** : Ce paramètre est crucial !
-   - **Build Command** : `npm install` (installe les dépendances du serveur)
+5. **IMPORTANT** : Dans les paramètres du service, sélectionnez la **branche `backend`** (pas `main`)
+6. Dans les paramètres du service :
+   - **Branch** : `backend` ⚠️ **CRUCIAL** : Utilisez la branche backend, pas main !
+   - **Root Directory** : Laissez vide (ou `/`) - tout est à la racine dans la branche backend
+   - **Build Command** : Laissé vide (Nixpacks détectera automatiquement)
    - **Start Command** : `npm start`
 
 **Important** : 
-- Le **Root Directory** doit être défini sur `server` pour que Railway sache où se trouve le `package.json`
-- Le fichier `server/nixpacks.toml` force l'installation des dépendances avec `npm install`
-- Assurez-vous que le fichier `server/package.json` contient toutes les dépendances nécessaires
+- La branche `main` contient le dossier `server/` pour le développement local
+- La branche `backend` a tout à la racine pour faciliter le déploiement Railway
+- Railway doit utiliser la branche `backend` pour éviter les problèmes d'installation des dépendances
+- Le fichier `nixpacks.toml` à la racine force l'installation des dépendances avec `npm install`
 - Si les dépendances ne s'installent toujours pas, vérifiez les logs de build dans Railway
-- **Si vous obtenez "express not found"** : Vérifiez que le fichier `server/nixpacks.toml` est présent et que Railway utilise Nixpacks comme builder
 
 ### Étape 2 : Configurer les Variables d'Environnement du Backend
 
@@ -80,14 +95,7 @@ VITE_STRIPE_PUBLIC_KEY=pk_test_votre_cle_stripe_publique
 
 ### Étape 5 : Configurer CORS sur le Backend
 
-Le backend doit autoriser les requêtes depuis le frontend. Modifiez `server/index.js` si nécessaire :
-
-```javascript
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://votre-frontend.railway.app',
-  credentials: true
-}));
-```
+Le backend doit autoriser les requêtes depuis le frontend. Dans la branche `backend`, le fichier est `index.js` à la racine. Le CORS est déjà configuré, mais vous pouvez ajuster la variable d'environnement `FRONTEND_URL` si nécessaire.
 
 ---
 
