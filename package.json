@@ -19,7 +19,7 @@
     "dev": "vite",
     "start": "vite",
     "build": "vite build",
-    "preview": "vite preview --port $PORT --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.1",
