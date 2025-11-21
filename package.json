@@ -10,6 +10,7 @@
     "@stripe/react-stripe-js": "^2.5.0",
     "@stripe/stripe-js": "^3.2.0",
     "axios": "^1.6.2",
+    "express": "^4.18.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-qr-code": "^2.0.18",
@@ -20,7 +21,8 @@
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "serve": "npx serve -s build -l ${PORT:-4173}"
+    "serve": "node server.js",
+    "start": "npm run serve"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.1",
