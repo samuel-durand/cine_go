@@ -6,14 +6,19 @@ Ce guide explique comment déployer l'application CineGo (frontend et backend) s
 
 - **Branche `main`** : Structure complète avec `server/` et `client/` pour le développement local
   - Utilisez cette branche pour développer en local avec `npm run dev`
-  - Le dossier `server/` est conservé pour la compatibilité avec le développement local
+  - Contient tous les dossiers (`server/` et `client/`) pour le développement complet
   
 - **Branche `backend`** : Backend simplifié (tout à la racine) pour le déploiement Railway
   - Cette branche a été créée spécialement pour Railway
   - Tous les fichiers du serveur sont à la racine (pas de dossier `server/`)
-  - Railway ne prendra pas en compte le dossier `server/` car il utilise cette branche
+  - **Railway doit utiliser la branche `backend`** pour déployer le serveur
   
-- **Railway doit utiliser la branche `backend`** pour déployer le serveur (pas `main`)
+- **Branche `frontend`** : Frontend simplifié (tout à la racine) pour le déploiement Railway
+  - Cette branche a été créée spécialement pour Railway
+  - Tous les fichiers du frontend sont à la racine (pas de dossier `client/`)
+  - **Railway doit utiliser la branche `frontend`** pour déployer le frontend
+  
+- **Railway utilise les branches `backend` et `frontend`** (pas `main` pour le déploiement)
 
 ## 🚀 Options de Déploiement
 
@@ -77,18 +82,18 @@ STRIPE_SECRET_KEY=sk_test_votre_cle_stripe_secrete
 
 1. Dans le même projet Railway, ajoutez un nouveau service
 2. Sélectionnez "GitHub Repo" et choisissez votre dépôt
-3. **IMPORTANT** : Utilisez la branche `main` pour le frontend
+3. **IMPORTANT** : Dans les paramètres du service, sélectionnez la **branche `frontend`** (pas `main`)
 4. Dans les paramètres du service :
-   - **Branch** : `main` (ou laissez la branche par défaut)
-   - **Root Directory** : `client` ⚠️ **CRUCIAL** : Défini sur `client` pour ignorer le dossier `server/`
+   - **Branch** : `frontend` ⚠️ **CRUCIAL** : Utilisez la branche frontend, pas main !
+   - **Root Directory** : Laissez vide (ou `/`) - tout est à la racine dans la branche frontend
    - **Build Command** : `npm install && npm run build`
    - **Start Command** : `npm run preview`
 
 **Important** : 
-- Le **Root Directory** défini sur `client` est **ESSENTIEL** - cela garantit que Railway ne prendra **PAS** en compte le dossier `server/`
-- Quand le Root Directory est défini sur `client`, Railway ne voit que le contenu de ce dossier
-- Le dossier `server/` reste dans la branche `main` pour le développement local mais n'est **jamais** inclus dans le build du frontend
-- Railway ne copiera que les fichiers du dossier `client/` lors du build
+- La branche `main` contient le dossier `client/` pour le développement local
+- La branche `frontend` a tout à la racine pour faciliter le déploiement Railway
+- Railway doit utiliser la branche `frontend` pour éviter d'inclure le dossier `server/`
+- Le dossier `server/` n'existe pas dans la branche `frontend`, donc il ne sera jamais inclus
 
 ### Étape 4 : Configurer les Variables d'Environnement du Frontend
 
