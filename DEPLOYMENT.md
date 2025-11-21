@@ -33,11 +33,15 @@ Vous avez deux options pour déployer sur Railway :
 3. Ajoutez un nouveau service en cliquant sur "+ New"
 4. Sélectionnez "GitHub Repo" et choisissez votre dépôt
 5. Dans les paramètres du service :
-   - **Root Directory** : `server`
+   - **Root Directory** : `server` ⚠️ **IMPORTANT** : Ce paramètre est crucial !
    - **Build Command** : `npm install` (installe les dépendances du serveur)
    - **Start Command** : `npm start`
 
-**Important** : Railway exécutera automatiquement `npm install` dans le dossier `server` lors du build. Assurez-vous que le fichier `server/package.json` contient toutes les dépendances nécessaires.
+**Important** : 
+- Le **Root Directory** doit être défini sur `server` pour que Railway sache où se trouve le `package.json`
+- Railway/Nixpacks devrait détecter automatiquement Node.js et installer les dépendances, mais si ce n'est pas le cas, le fichier `server/nixpacks.toml` force l'installation
+- Assurez-vous que le fichier `server/package.json` contient toutes les dépendances nécessaires
+- Si les dépendances ne s'installent toujours pas, vérifiez les logs de build dans Railway
 
 ### Étape 2 : Configurer les Variables d'Environnement du Backend
 
@@ -153,8 +157,18 @@ Pour activer le déploiement automatique :
 - Vérifiez que toutes les variables d'environnement sont définies
 - Vérifiez les logs dans Railway pour voir les erreurs
 - Assurez-vous que MongoDB est accessible depuis Railway
-- Vérifiez que les dépendances du serveur sont bien installées (Railway exécute `npm install` automatiquement, mais vérifiez les logs de build)
+- **Vérifiez que le Root Directory est bien défini sur `server`** dans les paramètres du service
+- Vérifiez que les dépendances du serveur sont bien installées (consultez les logs de build dans Railway)
+- Si les dépendances ne s'installent pas, vérifiez que le fichier `server/nixpacks.toml` est présent dans votre dépôt
 - Si vous modifiez `server/package.json`, assurez-vous de pousser les changements sur GitHub pour que Railway réinstalle les dépendances
+
+### Les dépendances ne s'installent pas
+
+- Vérifiez que le **Root Directory** est défini sur `server` (sans slash final)
+- Vérifiez que le fichier `server/package.json` existe et contient les dépendances
+- Vérifiez que le fichier `server/nixpacks.toml` est présent (il force l'installation)
+- Consultez les logs de build dans Railway pour voir les erreurs d'installation
+- Essayez de redéployer le service après avoir vérifié la configuration
 
 ### Le frontend ne peut pas se connecter au backend
 
