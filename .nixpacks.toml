@@ -1,0 +1,20 @@
+# Configuration Nixpacks pour Railway
+# Cette configuration peut être utilisée si Railway détecte automatiquement Nixpacks
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm"]
+
+[phases.install]
+cmds = [
+  "cd server && npm install",
+  "cd ../client && npm install"
+]
+
+[phases.build]
+cmds = [
+  "cd client && npm run build"
+]
+
+[start]
+cmd = "cd server && npm start"
+
