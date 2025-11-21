@@ -34,8 +34,10 @@ Vous avez deux options pour déployer sur Railway :
 4. Sélectionnez "GitHub Repo" et choisissez votre dépôt
 5. Dans les paramètres du service :
    - **Root Directory** : `server`
-   - **Build Command** : `npm install`
+   - **Build Command** : `npm install` (installe les dépendances du serveur)
    - **Start Command** : `npm start`
+
+**Important** : Railway exécutera automatiquement `npm install` dans le dossier `server` lors du build. Assurez-vous que le fichier `server/package.json` contient toutes les dépendances nécessaires.
 
 ### Étape 2 : Configurer les Variables d'Environnement du Backend
 
@@ -95,6 +97,8 @@ app.use(cors({
    - **Build Command** : `cd client && npm install && npm run build && cd ../server && npm install`
    - **Start Command** : `cd server && npm start`
 
+**Note** : La commande de build installe d'abord les dépendances du frontend (`client`), construit l'application, puis installe les dépendances du serveur (`server`). Railway exécutera ces commandes automatiquement lors du déploiement.
+
 ### Étape 2 : Configurer les Variables d'Environnement
 
 ```
@@ -149,6 +153,8 @@ Pour activer le déploiement automatique :
 - Vérifiez que toutes les variables d'environnement sont définies
 - Vérifiez les logs dans Railway pour voir les erreurs
 - Assurez-vous que MongoDB est accessible depuis Railway
+- Vérifiez que les dépendances du serveur sont bien installées (Railway exécute `npm install` automatiquement, mais vérifiez les logs de build)
+- Si vous modifiez `server/package.json`, assurez-vous de pousser les changements sur GitHub pour que Railway réinstalle les dépendances
 
 ### Le frontend ne peut pas se connecter au backend
 
@@ -176,10 +182,12 @@ Pour activer le déploiement automatique :
 - [ ] Compte Railway créé
 - [ ] Projet Railway créé
 - [ ] Service(s) créé(s)
+- [ ] Build Command configuré avec `npm install` pour le serveur
 - [ ] Variables d'environnement configurées
 - [ ] MongoDB Atlas configuré et accessible
 - [ ] Clés Stripe configurées
 - [ ] CORS configuré correctement
+- [ ] Dépendances du serveur installées (automatique via Railway)
 - [ ] Déploiement réussi
 - [ ] Application testée en production
 
