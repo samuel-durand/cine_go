@@ -77,10 +77,18 @@ STRIPE_SECRET_KEY=sk_test_votre_cle_stripe_secrete
 
 1. Dans le même projet Railway, ajoutez un nouveau service
 2. Sélectionnez "GitHub Repo" et choisissez votre dépôt
-3. Dans les paramètres du service :
-   - **Root Directory** : `client`
+3. **IMPORTANT** : Utilisez la branche `main` pour le frontend
+4. Dans les paramètres du service :
+   - **Branch** : `main` (ou laissez la branche par défaut)
+   - **Root Directory** : `client` ⚠️ **CRUCIAL** : Défini sur `client` pour ignorer le dossier `server/`
    - **Build Command** : `npm install && npm run build`
    - **Start Command** : `npm run preview`
+
+**Important** : 
+- Le **Root Directory** défini sur `client` est **ESSENTIEL** - cela garantit que Railway ne prendra **PAS** en compte le dossier `server/`
+- Quand le Root Directory est défini sur `client`, Railway ne voit que le contenu de ce dossier
+- Le dossier `server/` reste dans la branche `main` pour le développement local mais n'est **jamais** inclus dans le build du frontend
+- Railway ne copiera que les fichiers du dossier `client/` lors du build
 
 ### Étape 4 : Configurer les Variables d'Environnement du Frontend
 
