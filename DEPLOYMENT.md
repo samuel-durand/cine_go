@@ -39,9 +39,10 @@ Vous avez deux options pour déployer sur Railway :
 
 **Important** : 
 - Le **Root Directory** doit être défini sur `server` pour que Railway sache où se trouve le `package.json`
-- Railway/Nixpacks devrait détecter automatiquement Node.js et installer les dépendances, mais si ce n'est pas le cas, le fichier `server/nixpacks.toml` force l'installation
+- Le fichier `server/nixpacks.toml` force l'installation des dépendances avec `npm install`
 - Assurez-vous que le fichier `server/package.json` contient toutes les dépendances nécessaires
 - Si les dépendances ne s'installent toujours pas, vérifiez les logs de build dans Railway
+- **Si vous obtenez "express not found"** : Vérifiez que le fichier `server/nixpacks.toml` est présent et que Railway utilise Nixpacks comme builder
 
 ### Étape 2 : Configurer les Variables d'Environnement du Backend
 
@@ -71,7 +72,7 @@ STRIPE_SECRET_KEY=sk_test_votre_cle_stripe_secrete
 Dans les paramètres du service frontend, ajoutez ces variables :
 
 ```
-VITE_API_URL=https://votre-backend.railway.app/api
+VITE_API_URL=https://cinego-production-12de.up.railway.app/api
 VITE_STRIPE_PUBLIC_KEY=pk_test_votre_cle_stripe_publique
 ```
 
@@ -162,13 +163,16 @@ Pour activer le déploiement automatique :
 - Si les dépendances ne s'installent pas, vérifiez que le fichier `server/nixpacks.toml` est présent dans votre dépôt
 - Si vous modifiez `server/package.json`, assurez-vous de pousser les changements sur GitHub pour que Railway réinstalle les dépendances
 
-### Les dépendances ne s'installent pas
+### Les dépendances ne s'installent pas / "express not found"
 
 - Vérifiez que le **Root Directory** est défini sur `server` (sans slash final)
-- Vérifiez que le fichier `server/package.json` existe et contient les dépendances
-- Vérifiez que le fichier `server/nixpacks.toml` est présent (il force l'installation)
-- Consultez les logs de build dans Railway pour voir les erreurs d'installation
+- Vérifiez que le fichier `server/package.json` existe et contient les dépendances (express, mongoose, etc.)
+- Vérifiez que le fichier `server/nixpacks.toml` est présent dans votre dépôt (il force l'installation)
+- Dans les paramètres Railway, vérifiez que le **Builder** est défini sur **Nixpacks** (pas Dockerfile)
+- Consultez les logs de build dans Railway pour voir si `npm install` est exécuté
+- Si `npm install` n'apparaît pas dans les logs, le fichier `nixpacks.toml` n'est peut-être pas détecté
 - Essayez de redéployer le service après avoir vérifié la configuration
+- Si le problème persiste, dans les paramètres Railway, définissez manuellement **Build Command** : `npm install`
 
 ### Le frontend ne peut pas se connecter au backend
 
