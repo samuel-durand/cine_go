@@ -7,10 +7,31 @@ require('dotenv').config();
 const app = express();
 
 // Middleware
+// Configuration CORS pour autoriser les domaines définis dans les variables d'env
+const allowedOrigins = [
+  ...(process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+    : []),
+  process.env.FRONTEND_URL,
+].filter(Boolean); // Retire les valeurs undefined/null
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || process.env.NODE_ENV === 'production' 
-    ? false 
-    : 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Autoriser les requêtes sans origine (comme Postman, mobile apps, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Vérifier si l'origine est dans la liste autorisée
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      // En production, autoriser aussi si FRONTEND_URL n'est pas défini (pour compatibilité)
+      if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+        callback(null, true);
+      } else {
+        callback(new Error('Non autorisé par CORS'));
+      }
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };

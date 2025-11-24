@@ -7,11 +7,14 @@ import {
   Grid,
   Card,
   CardContent,
+  CardActionArea,
   Box,
   CircularProgress,
   Paper,
   Divider,
-  LinearProgress
+  LinearProgress,
+  Chip,
+  Stack
 } from '@mui/material';
 import {
   Dashboard,
@@ -23,7 +26,8 @@ import {
   Room,
   TrendingUp,
   Euro,
-  AccessTime
+  AccessTime,
+  ArrowForward
 } from '@mui/icons-material';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -216,78 +220,103 @@ const AdminDashboard = () => {
             return (
               <Grid item xs={12} sm={6} md={4} lg={2} key={stat.title}>
                 <Card
-                  component={Link}
-                  to={stat.link}
                   sx={{
                     background: stat.bgGradient,
-                    border: '1px solid rgba(255, 215, 0, 0.2)',
+                    border: '1px solid rgba(255, 215, 0, 0.15)',
                     borderRadius: '12px',
                     height: '100%',
-                    textDecoration: 'none',
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      borderColor: '#FFD700',
-                      boxShadow: '0 8px 24px rgba(255, 215, 0, 0.2)',
-                    },
+                    overflow: 'hidden',
+                    position: 'relative',
                   }}
                 >
-                  <CardContent sx={{ padding: 3 }}>
+                  <CardActionArea
+                    component={Link}
+                    to={stat.link}
+                    sx={{
+                      height: '100%',
+                      display: 'block',
+                      textDecoration: 'none',
+                      position: 'relative',
+                      padding: 3,
+                      '&:hover .stat-card__glow': {
+                        opacity: 1,
+                        transform: 'scale(1.2)',
+                      },
+                    }}
+                  >
                     <Box
+                      className="stat-card__glow"
                       sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: 2,
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'radial-gradient(circle at top right, rgba(255,215,0,0.2), transparent 55%)',
+                        opacity: 0,
+                        transition: 'opacity 0.3s ease, transform 0.3s ease',
+                        pointerEvents: 'none',
                       }}
-                    >
-                      <Box
-                        sx={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: '12px',
-                          backgroundColor: stat.iconBg || 'rgba(255, 215, 0, 0.1)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Icon sx={{ fontSize: 32, color: stat.color }} />
-                      </Box>
-                    </Box>
-                    <Typography
-                      variant="h4"
-                      sx={{
-                        fontWeight: 700,
-                        color: '#FFFFFF',
-                        marginBottom: 0.5,
-                      }}
-                    >
-                      {stat.value}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: '#CCCCCC',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {stat.title}
-                    </Typography>
-                    {stat.subtitle && (
+                    />
+                    <CardContent sx={{ position: 'relative', padding: 0 }}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                        <Box
+                          sx={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: '16px',
+                            backgroundColor: stat.iconBg || 'rgba(255, 215, 0, 0.08)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: 'inset 0 0 12px rgba(255, 215, 0, 0.15)',
+                          }}
+                        >
+                          <Icon sx={{ fontSize: 30, color: stat.color }} />
+                        </Box>
+                        <Chip
+                          icon={<ArrowForward sx={{ fontSize: 16 }} />}
+                          label="Ouvrir"
+                          size="small"
+                          sx={{
+                            bgcolor: 'rgba(255, 215, 0, 0.12)',
+                            color: '#FFD700',
+                            fontWeight: 600,
+                            borderRadius: '999px',
+                            '& .MuiChip-icon': { color: '#FFD700', marginLeft: 0 },
+                          }}
+                        />
+                      </Stack>
                       <Typography
-                        variant="caption"
+                        variant="h4"
                         sx={{
-                          color: '#FFD700',
-                          display: 'block',
-                          marginTop: 0.5,
+                          fontWeight: 700,
+                          color: '#FFFFFF',
+                          marginBottom: 0.5,
                         }}
                       >
-                        {stat.subtitle}
+                        {stat.value}
                       </Typography>
-                    )}
-                  </CardContent>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: '#CCCCCC',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {stat.title}
+                      </Typography>
+                      {stat.subtitle && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: '#FFD700',
+                            display: 'block',
+                            marginTop: 0.5,
+                          }}
+                        >
+                          {stat.subtitle}
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </CardActionArea>
                 </Card>
               </Grid>
             );
@@ -296,59 +325,98 @@ const AdminDashboard = () => {
 
         {/* Planning Card */}
         <Grid container spacing={3} sx={{ marginBottom: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4} lg={3}>
             <Card
-              component={Link}
-              to="/admin/planning"
               sx={{
-                background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+                background: 'linear-gradient(135deg, #181818 0%, #2c2300 100%)',
                 border: '1px solid rgba(255, 215, 0, 0.2)',
-                borderRadius: '12px',
-                height: '100%',
-                textDecoration: 'none',
-                transition: 'all 0.3s ease',
-                cursor: 'pointer',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  borderColor: '#FFD700',
-                  boxShadow: '0 8px 24px rgba(255, 215, 0, 0.2)',
-                },
+                borderRadius: '16px',
+                overflow: 'hidden',
+                position: 'relative',
               }}
             >
-              <CardContent sx={{ padding: 3 }}>
+              <CardActionArea
+                component={Link}
+                to="/admin/planning"
+                sx={{
+                  padding: 3,
+                  display: 'block',
+                  '&:hover .planning-card__glow': { opacity: 1, transform: 'scale(1.1)' },
+                }}
+              >
                 <Box
+                  className="planning-card__glow"
                   sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: '12px',
-                    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 2,
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(circle at 80% 20%, rgba(255,215,0,0.2), transparent 50%)',
+                    opacity: 0,
+                    transition: 'opacity 0.35s ease, transform 0.35s ease',
                   }}
-                >
-                  <CalendarToday sx={{ fontSize: 32, color: '#FFD700' }} />
-                </Box>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    color: '#FFFFFF',
-                    marginBottom: 0.5,
-                  }}
-                >
-                  Planning
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: '#CCCCCC',
-                  }}
-                >
-                  Voir les plannings
-                </Typography>
-              </CardContent>
+                />
+                <CardContent sx={{ position: 'relative', padding: 0 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: '16px',
+                        backgroundColor: 'rgba(255, 215, 0, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: 'inset 0 0 18px rgba(255, 215, 0, 0.2)',
+                      }}
+                    >
+                      <CalendarToday sx={{ fontSize: 30, color: '#FFD700' }} />
+                    </Box>
+                    <Chip
+                      label="Voir les plannings"
+                      icon={<ArrowForward sx={{ fontSize: 16 }} />}
+                      sx={{
+                        bgcolor: 'rgba(255, 215, 0, 0.12)',
+                        color: '#FFD700',
+                        fontWeight: 600,
+                        borderRadius: '999px',
+                        '& .MuiChip-icon': { color: '#FFD700', marginLeft: 0 },
+                      }}
+                    />
+                  </Stack>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 700,
+                      color: '#FFFFFF',
+                      marginBottom: 1,
+                    }}
+                  >
+                    Planning des salles
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#CCCCCC',
+                      marginBottom: 2,
+                    }}
+                  >
+                    Accédez à la vue calendrier pour gérer les séances et bloquer les dates en un clic.
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      color: '#FFD700',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <ArrowForward sx={{ fontSize: 18 }} />
+                    <Typography variant="body2" sx={{ color: '#FFD700', fontWeight: 600 }}>
+                      Gérer les plannings
+                    </Typography>
+                  </Box>
+                </CardContent>
+              </CardActionArea>
             </Card>
           </Grid>
         </Grid>

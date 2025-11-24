@@ -403,24 +403,83 @@ router.put('/:id/block', auth, admin, async (req, res) => {
   }
 });
 
+// Bloquer/Débloquer toutes les séances d'une salle pour une date (admin)
+router.put('/planning/:salleId/block-date', auth, admin, async (req, res) => {
+  try {
+    const { salleId } = req.params;
+    const { date, bloque, raisonBlocage } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({ message: 'La date est requise.' });
+    }
+    
+    // Créer les dates de début et fin de journée
+    const startDate = new Date(date + 'T00:00:00.000Z');
+    const endDate = new Date(date + 'T23:59:59.999Z');
+    
+    // Trouver toutes les séances de la salle pour cette date
+    const seances = await Seance.updateMany(
+      {
+        salle: salleId,
+        date: {
+          $gte: startDate,
+          $lte: endDate
+        }
+      },
+      {
+        bloque: bloque !== undefined ? bloque : true,
+        raisonBlocage: raisonBlocage || ''
+      }
+    );
+    
+    // Récupérer les séances mises à jour
+    const updatedSeances = await Seance.find({
+      salle: salleId,
+      date: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    })
+      .populate('film', 'titre duree image')
+      .populate('salle', 'nom type capacite')
+      .sort({ date: 1, heure: 1 });
+    
+    res.json({
+      message: `${seances.modifiedCount} séance(s) ${bloque ? 'bloquée(s)' : 'débloquée(s)'}`,
+      count: seances.modifiedCount,
+      seances: updatedSeances
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Obtenir les séances par salle et date (admin - pour planning)
 router.get('/planning/:salleId', auth, admin, async (req, res) => {
   try {
     const { salleId } = req.params;
-    const { date } = req.query;
+    const { date, startDate, endDate } = req.query;
     
     let query = { salle: salleId };
     
-    if (date) {
-      // Format attendu: YYYY-MM-DD
-      // Créer les dates de début et fin de journée en UTC
-      const dateStr = date; // Format: YYYY-MM-DD
-      const startDate = new Date(dateStr + 'T00:00:00.000Z');
-      const endDate = new Date(dateStr + 'T23:59:59.999Z');
+    if (startDate && endDate) {
+      // Support d'une plage de dates pour le calendrier
+      const start = new Date(startDate + 'T00:00:00.000Z');
+      const end = new Date(endDate + 'T23:59:59.999Z');
       
       query.date = {
-        $gte: startDate,
-        $lte: endDate
+        $gte: start,
+        $lte: end
+      };
+    } else if (date) {
+      // Format attendu: YYYY-MM-DD (compatibilité avec l'ancien code)
+      const dateStr = date; // Format: YYYY-MM-DD
+      const start = new Date(dateStr + 'T00:00:00.000Z');
+      const end = new Date(dateStr + 'T23:59:59.999Z');
+      
+      query.date = {
+        $gte: start,
+        $lte: end
       };
     }
 
