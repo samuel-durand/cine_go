@@ -1,4 +1,5 @@
 ﻿const nodemailer = require('nodemailer');
+const QRCode = require('qrcode');
 const { reservationConfirmationTemplate } = require('./emailTemplates');
 
 // Variable globale pour stocker le transporteur Ethereal
@@ -141,6 +142,27 @@ const sendReservationConfirmation = async (reservation, user) => {
       return { success: false, error: 'Service email non configuré' };
     }
     
+    // Générer le QR code avec les données de la réservation
+    const qrCodeData = JSON.stringify({
+      reservationId: reservation._id?.toString() || reservation._id,
+      userId: user._id?.toString() || user._id || reservation.user?.toString() || reservation.user,
+      seanceId: reservation.seance?._id?.toString() || reservation.seance?._id || reservation.seance?.toString() || reservation.seance,
+      date: reservation.dateReservation || new Date().toISOString()
+    });
+    
+    let qrCodeBase64 = '';
+    try {
+      qrCodeBase64 = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: 'H',
+        type: 'image/png',
+        width: 200,
+        margin: 1
+      });
+    } catch (qrError) {
+      console.error('⚠️  Erreur lors de la génération du QR code:', qrError);
+      // Continuer sans QR code si la génération échoue
+    }
+    
     const fromEmail = process.env.EMAIL_FROM || 
                      (process.env.EMAIL_USER ? `"Ciné Go" <${process.env.EMAIL_USER}>` : 
                       (etherealAccount ? `"Ciné Go" <${etherealAccount.user}>` : '"Ciné Go" <noreply@cinego.com>'));
@@ -149,7 +171,7 @@ const sendReservationConfirmation = async (reservation, user) => {
       from: fromEmail,
       to: user.email,
       subject: `Confirmation de réservation - ${reservation.seance?.film?.titre || 'Votre réservation'}`,
-      html: reservationConfirmationTemplate(reservation, user)
+      html: reservationConfirmationTemplate(reservation, user, qrCodeBase64)
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -247,7 +269,95 @@ const sendAdminNotification = async (reservation, user) => {
   }
 };
 
+// Fonction de test pour envoyer un email avec des données de test
+const sendTestEmail = async (testEmail) => {
+  try {
+    const transporter = await createTransporter();
+    
+    if (!transporter) {
+      return { success: false, error: 'Service email non configuré' };
+    }
+    
+    // Créer des données de test
+    const testReservation = {
+      _id: 'TEST_' + Date.now(),
+      seance: {
+        date: new Date(),
+        heure: '20:00',
+        film: {
+          titre: 'Film de test - Ciné Go'
+        },
+        salle: {
+          nom: 'Salle A',
+          cinema: {
+            nom: 'Cinéma Test'
+          }
+        }
+      },
+      places: ['A1', 'A2'],
+      nombrePlaces: 2,
+      prixTotal: 15.50
+    };
+    
+    const testUser = {
+      _id: 'TEST_USER_' + Date.now(),
+      prenom: 'Admin',
+      nom: 'Test',
+      email: testEmail || process.env.ADMIN_EMAIL || 'test@example.com'
+    };
+    
+    // Générer le QR code pour le test
+    const qrCodeData = JSON.stringify({
+      reservationId: testReservation._id,
+      userId: testUser._id,
+      seanceId: 'TEST_SEANCE',
+      date: new Date().toISOString()
+    });
+    
+    let qrCodeBase64 = '';
+    try {
+      qrCodeBase64 = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: 'H',
+        type: 'image/png',
+        width: 200,
+        margin: 1
+      });
+    } catch (qrError) {
+      console.error('⚠️  Erreur lors de la génération du QR code de test:', qrError);
+    }
+    
+    const fromEmail = process.env.EMAIL_FROM || 
+                     (process.env.EMAIL_USER ? `"Ciné Go" <${process.env.EMAIL_USER}>` : 
+                      (etherealAccount ? `"Ciné Go" <${etherealAccount.user}>` : '"Ciné Go" <noreply@cinego.com>'));
+    
+    const mailOptions = {
+      from: fromEmail,
+      to: testUser.email,
+      subject: 'Test d\'envoi d\'email - Ciné Go',
+      html: reservationConfirmationTemplate(testReservation, testUser, qrCodeBase64)
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    
+    // Vérifier si on utilise Ethereal
+    const isLocal = process.env.NODE_ENV !== 'production' || !process.env.NODE_ENV;
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    
+    return { 
+      success: true, 
+      messageId: info.messageId, 
+      previewUrl: previewUrl || null,
+      email: testUser.email,
+      isLocal
+    };
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'envoi de l\'email de test:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendReservationConfirmation,
-  sendAdminNotification
+  sendAdminNotification,
+  sendTestEmail
 };
