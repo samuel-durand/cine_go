@@ -14,11 +14,20 @@ import {
   Divider,
   LinearProgress,
   Chip,
-  Stack
+  Stack,
+  Button,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import {
   Dashboard,
   Movie,
+  Category,
   Event,
   Receipt,
   People,
@@ -27,7 +36,8 @@ import {
   TrendingUp,
   Euro,
   AccessTime,
-  ArrowForward
+  ArrowForward,
+  Email
 } from '@mui/icons-material';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -35,6 +45,7 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
     films: 0,
+    genres: 0,
     cinemas: 0,
     salles: 0,
     seances: 0,
@@ -45,6 +56,11 @@ const AdminDashboard = () => {
   });
   const [recentReservations, setRecentReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailResult, setEmailResult] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   useEffect(() => {
     fetchStats();
@@ -54,8 +70,9 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const [filmsRes, cinemasRes, sallesRes, seancesRes, reservationsRes, usersRes] = await Promise.all([
+      const [filmsRes, genresRes, cinemasRes, sallesRes, seancesRes, reservationsRes, usersRes] = await Promise.all([
         axios.get(`${API_URL}/films/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/genres/all`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API_URL}/cinemas/all`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API_URL}/salles/all`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API_URL}/seances/all`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -78,6 +95,7 @@ const AdminDashboard = () => {
 
       setStats({
         films: filmsRes.data.length,
+        genres: genresRes.data.length,
         cinemas: cinemasRes.data.length,
         salles: sallesRes.data.length,
         seances: seancesRes.data.length,
@@ -105,6 +123,68 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleOpenEmailDialog = () => {
+    setEmailDialogOpen(true);
+    setEmailResult(null);
+    setTestEmail('');
+  };
+
+  const handleCloseEmailDialog = () => {
+    setEmailDialogOpen(false);
+    setEmailResult(null);
+    setTestEmail('');
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testEmail || !testEmail.includes('@')) {
+      setSnackbar({
+        open: true,
+        message: 'Veuillez entrer une adresse email valide',
+        severity: 'error'
+      });
+      return;
+    }
+
+    setEmailLoading(true);
+    setEmailResult(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${API_URL}/utils/test-email`,
+        { email: testEmail },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setEmailResult(response.data);
+      setSnackbar({
+        open: true,
+        message: response.data.success 
+          ? 'Email de test envoyé avec succès !' 
+          : 'Erreur lors de l\'envoi',
+        severity: response.data.success ? 'success' : 'error'
+      });
+
+      if (response.data.success && response.data.previewUrl) {
+        setTimeout(() => {
+          window.open(response.data.previewUrl, '_blank');
+        }, 1000);
+      }
+    } catch (error) {
+      setEmailResult({
+        success: false,
+        error: error.response?.data?.message || error.message || 'Erreur lors de l\'envoi'
+      });
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Erreur lors de l\'envoi de l\'email',
+        severity: 'error'
+      });
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box
@@ -129,6 +209,14 @@ const AdminDashboard = () => {
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
       link: '/admin/films'
+    },
+    {
+      title: 'Genres',
+      value: stats.genres,
+      icon: Category,
+      color: '#FFD700',
+      bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+      link: '/admin/genres'
     },
     {
       title: 'Cinémas',
@@ -323,7 +411,7 @@ const AdminDashboard = () => {
           })}
         </Grid>
 
-        {/* Planning Card */}
+        {/* Planning Card & Email Test Card */}
         <Grid container spacing={3} sx={{ marginBottom: 4 }}>
           <Grid item xs={12} sm={6} md={4} lg={3}>
             <Card
@@ -413,6 +501,99 @@ const AdminDashboard = () => {
                     <ArrowForward sx={{ fontSize: 18 }} />
                     <Typography variant="body2" sx={{ color: '#FFD700', fontWeight: 600 }}>
                       Gérer les plannings
+                    </Typography>
+                  </Box>
+                </CardContent>
+              </CardActionArea>
+            </Card>
+          </Grid>
+          
+          {/* Test Email Card */}
+          <Grid item xs={12} sm={6} md={4} lg={3}>
+            <Card
+              sx={{
+                background: 'linear-gradient(135deg, #181818 0%, #001f2c 100%)',
+                border: '1px solid rgba(255, 215, 0, 0.2)',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
+              <CardActionArea
+                onClick={handleOpenEmailDialog}
+                sx={{
+                  padding: 3,
+                  display: 'block',
+                  '&:hover .email-card__glow': { opacity: 1, transform: 'scale(1.1)' },
+                }}
+              >
+                <Box
+                  className="email-card__glow"
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(circle at 80% 20%, rgba(255,215,0,0.2), transparent 50%)',
+                    opacity: 0,
+                    transition: 'opacity 0.35s ease, transform 0.35s ease',
+                  }}
+                />
+                <CardContent sx={{ position: 'relative', padding: 0 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: '16px',
+                        backgroundColor: 'rgba(255, 215, 0, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: 'inset 0 0 18px rgba(255, 215, 0, 0.2)',
+                      }}
+                    >
+                      <Email sx={{ fontSize: 30, color: '#FFD700' }} />
+                    </Box>
+                    <Chip
+                      label="Tester"
+                      sx={{
+                        bgcolor: 'rgba(255, 215, 0, 0.12)',
+                        color: '#FFD700',
+                        fontWeight: 600,
+                        borderRadius: '999px',
+                      }}
+                    />
+                  </Stack>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 700,
+                      color: '#FFFFFF',
+                      marginBottom: 1,
+                    }}
+                  >
+                    Test Email
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#CCCCCC',
+                      marginBottom: 2,
+                    }}
+                  >
+                    Testez l'envoi d'email avec le template de confirmation de réservation.
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      color: '#FFD700',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Email sx={{ fontSize: 18 }} />
+                    <Typography variant="body2" sx={{ color: '#FFD700', fontWeight: 600 }}>
+                      Envoyer un email test
                     </Typography>
                   </Box>
                 </CardContent>
@@ -594,6 +775,126 @@ const AdminDashboard = () => {
           </Grid>
         </Grid>
       </Container>
+
+      {/* Dialog pour tester l'email */}
+      <Dialog 
+        open={emailDialogOpen} 
+        onClose={handleCloseEmailDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: '#1a1a1a',
+            color: '#FFFFFF',
+            border: '1px solid rgba(255, 215, 0, 0.2)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: '#FFD700', fontWeight: 700 }}>
+          Tester l'envoi d'email
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: '#CCCCCC', mb: 3 }}>
+            Entrez l'adresse email où vous souhaitez recevoir l'email de test avec le template de confirmation de réservation.
+          </Typography>
+          
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Adresse email"
+            type="email"
+            fullWidth
+            variant="outlined"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: '#FFFFFF',
+                '& fieldset': {
+                  borderColor: 'rgba(255, 215, 0, 0.3)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255, 215, 0, 0.5)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#FFD700',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: '#CCCCCC',
+                '&.Mui-focused': {
+                  color: '#FFD700',
+                },
+              },
+            }}
+          />
+
+          {emailResult && (
+            <Box sx={{ mt: 2 }}>
+              {emailResult.success ? (
+                <Alert severity="success" sx={{ backgroundColor: 'rgba(76, 175, 80, 0.2)', color: '#FFFFFF' }}>
+                  <Typography variant="body2">
+                    Email envoyé avec succès à <strong>{emailResult.email}</strong>
+                  </Typography>
+                  {emailResult.previewUrl && (
+                    <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+                      L'URL de prévisualisation s'ouvrira dans un nouvel onglet...
+                    </Typography>
+                  )}
+                </Alert>
+              ) : (
+                <Alert severity="error" sx={{ backgroundColor: 'rgba(244, 67, 54, 0.2)', color: '#FFFFFF' }}>
+                  <Typography variant="body2">
+                    Erreur : {emailResult.error || 'Erreur inconnue'}
+                  </Typography>
+                </Alert>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255, 215, 0, 0.1)' }}>
+          <Button 
+            onClick={handleCloseEmailDialog}
+            sx={{ color: '#CCCCCC' }}
+          >
+            Annuler
+          </Button>
+          <Button 
+            onClick={handleSendTestEmail}
+            disabled={emailLoading || !testEmail}
+            variant="contained"
+            sx={{
+              backgroundColor: '#FFD700',
+              color: '#000000',
+              '&:hover': {
+                backgroundColor: '#FFC700',
+              },
+              '&:disabled': {
+                backgroundColor: 'rgba(255, 215, 0, 0.3)',
+                color: 'rgba(0, 0, 0, 0.5)',
+              },
+            }}
+          >
+            {emailLoading ? 'Envoi...' : 'Envoyer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar pour les notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

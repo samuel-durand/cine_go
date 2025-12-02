@@ -3,6 +3,7 @@ const Film = require('../models/Film');
 const Seance = require('../models/Seance');
 const Salle = require('../models/Salle');
 const Cinema = require('../models/Cinema');
+const Commentaire = require('../models/Commentaire');
 const { auth, admin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const router = express.Router();
@@ -10,7 +11,9 @@ const router = express.Router();
 // Obtenir tous les films (public)
 router.get('/', async (req, res) => {
   try {
-    const films = await Film.find({ actif: true }).sort({ dateSortie: -1 });
+    const films = await Film.find({ actif: true })
+      .populate('genre', 'nom')
+      .sort({ dateSortie: -1 });
     res.json(films);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -20,7 +23,9 @@ router.get('/', async (req, res) => {
 // Obtenir tous les films (admin - inclut les inactifs)
 router.get('/all', auth, admin, async (req, res) => {
   try {
-    const films = await Film.find().sort({ dateSortie: -1 });
+    const films = await Film.find()
+      .populate('genre', 'nom')
+      .sort({ dateSortie: -1 });
     res.json(films);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -73,7 +78,8 @@ router.get('/:id/cinemas', async (req, res) => {
 // Obtenir un film par ID (DOIT être après /:id/cinemas)
 router.get('/:id', async (req, res) => {
   try {
-    const film = await Film.findById(req.params.id);
+    const film = await Film.findById(req.params.id)
+      .populate('genre', 'nom description');
     if (!film) {
       return res.status(404).json({ message: 'Film non trouvé.' });
     }
@@ -108,9 +114,19 @@ router.get('/:id', async (req, res) => {
     
     const cinemas = Array.from(cinemasMap.values());
     
-    // Ajouter les cinémas au film
+    // Récupérer les commentaires du film
+    const commentaires = await Commentaire.find({ film: film._id })
+      .populate('user', 'nom prenom email')
+      .populate('reponse.reponduPar', 'nom prenom email')
+      .sort({ createdAt: -1 })
+      .limit(10) // Limiter à 10 commentaires récents pour la réponse
+      .lean();
+    
+    // Ajouter les cinémas et commentaires au film
     const filmObj = film.toObject();
     filmObj.cinemas = cinemas;
+    filmObj.commentaires = commentaires;
+    filmObj.totalCommentaires = await Commentaire.countDocuments({ film: film._id });
     
     res.json(filmObj);
   } catch (error) {
@@ -190,6 +206,15 @@ router.post('/', auth, admin, upload.single('image'), async (req, res) => {
       filmData.acteurs = filmData.acteurs.split(',').map(a => a.trim()).filter(a => a);
     }
     
+    // Nettoyer l'URL du trailer si fournie
+    if (filmData.trailerUrl) {
+      filmData.trailerUrl = filmData.trailerUrl.trim();
+      // Si vide après trim, mettre undefined pour ne pas sauvegarder
+      if (!filmData.trailerUrl) {
+        filmData.trailerUrl = undefined;
+      }
+    }
+    
     // Convertir les types appropriés
     if (filmData.duree) filmData.duree = parseInt(filmData.duree);
     if (filmData.prix) filmData.prix = parseFloat(filmData.prix);
@@ -197,6 +222,7 @@ router.post('/', auth, admin, upload.single('image'), async (req, res) => {
     if (filmData.actif !== undefined) filmData.actif = filmData.actif === 'true' || filmData.actif === true;
     
     const film = await Film.create(filmData);
+    await film.populate('genre', 'nom');
     res.status(201).json(film);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -229,6 +255,19 @@ router.put('/:id', auth, admin, upload.single('image'), async (req, res) => {
       filmData.acteurs = filmData.acteurs.split(',').map(a => a.trim()).filter(a => a);
     }
     
+    // Nettoyer l'URL du trailer si fournie
+    if (filmData.trailerUrl !== undefined) {
+      if (filmData.trailerUrl) {
+        filmData.trailerUrl = filmData.trailerUrl.trim();
+        // Si vide après trim, mettre une chaîne vide
+        if (!filmData.trailerUrl) {
+          filmData.trailerUrl = '';
+        }
+      } else {
+        filmData.trailerUrl = '';
+      }
+    }
+    
     // Convertir les types appropriés
     if (filmData.duree) filmData.duree = parseInt(filmData.duree);
     if (filmData.prix) filmData.prix = parseFloat(filmData.prix);
@@ -243,6 +282,7 @@ router.put('/:id', auth, admin, upload.single('image'), async (req, res) => {
     if (!film) {
       return res.status(404).json({ message: 'Film non trouvé.' });
     }
+    await film.populate('genre', 'nom');
     res.json(film);
   } catch (error) {
     res.status(500).json({ message: error.message });

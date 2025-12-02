@@ -2,7 +2,20 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config();
+
+// Charger le .env - essaie d'abord dans server/, puis à la racine
+const fs = require('fs');
+const envPathServer = path.join(__dirname, '.env');
+const envPathRoot = path.join(__dirname, '..', '.env');
+
+if (fs.existsSync(envPathServer)) {
+  require('dotenv').config({ path: envPathServer });
+} else if (fs.existsSync(envPathRoot)) {
+  require('dotenv').config({ path: envPathRoot });
+} else {
+  // Par défaut, chercher à la racine (comportement standard de dotenv)
+  require('dotenv').config();
+}
 
 const app = express();
 
@@ -20,16 +33,30 @@ const corsOptions = {
     // Autoriser les requêtes sans origine (comme Postman, mobile apps, etc.)
     if (!origin) return callback(null, true);
     
-    // Vérifier si l'origine est dans la liste autorisée
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
-      callback(null, true);
-    } else {
-      // En production, autoriser aussi si FRONTEND_URL n'est pas défini (pour compatibilité)
-      if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
-        callback(null, true);
+    // Utiliser les variables d'environnement pour les origines autorisées
+    // Si des origines sont définies dans le .env, les utiliser
+    if (allowedOrigins.length > 0) {
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        return callback(null, true);
       } else {
-        callback(new Error('Non autorisé par CORS'));
+        // En développement, si l'origine n'est pas dans la liste mais qu'on a défini des origines,
+        // on autorise quand même pour plus de flexibilité
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`⚠️  Origine non autorisée dans .env: ${origin} (autorisée en dev)`);
+          return callback(null, true);
+        }
+        return callback(new Error('Non autorisé par CORS'));
       }
+    }
+    
+    // Si aucune origine n'est définie dans le .env, autoriser toutes les origines en développement
+    // En production, il faut définir FRONTEND_URL ou ALLOWED_ORIGINS
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️  Aucune origine définie dans .env, toutes les origines sont autorisées en développement');
+      return callback(null, true);
+    } else {
+      console.error('❌ FRONTEND_URL ou ALLOWED_ORIGINS doit être défini en production');
+      return callback(new Error('Configuration CORS manquante'));
     }
   },
   credentials: true,
@@ -45,6 +72,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/films', require('./routes/films'));
+app.use('/api/genres', require('./routes/genres'));
 app.use('/api/cinemas', require('./routes/cinemas'));
 app.use('/api/utils', require('./routes/utils'));
 app.use('/api/salles', require('./routes/salles'));
@@ -53,6 +81,7 @@ app.use('/api/reservations', require('./routes/reservations'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/tickets', require('./routes/tickets'));
+app.use('/api/commentaires', require('./routes/commentaires'));
 
 // Servir les fichiers statiques du frontend en production
 if (process.env.NODE_ENV === 'production') {
@@ -67,9 +96,22 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Vérification des variables d'environnement obligatoires
+if (!process.env.PORT) {
+  console.error('❌ Erreur: PORT doit être défini dans les variables d\'environnement');
+  console.error('💡 Vérifiez que le fichier .env existe dans server/ ou à la racine du projet');
+  process.exit(1);
+}
+
+if (!process.env.MONGODB_URI) {
+  console.error('❌ Erreur: MONGODB_URI doit être défini dans les variables d\'environnement');
+  console.error('💡 Vérifiez que le fichier .env existe dans server/ ou à la racine du projet');
+  process.exit(1);
+}
+
 // Connexion MongoDB
-const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/cinego';
+const PORT = process.env.PORT;
+const MONGODB_URI = process.env.MONGODB_URI;
 
 mongoose.connect(MONGODB_URI)
   .then(() => {
@@ -80,5 +122,6 @@ mongoose.connect(MONGODB_URI)
   })
   .catch((err) => {
     console.error('❌ Erreur de connexion MongoDB:', err);
+    process.exit(1);
   });
 

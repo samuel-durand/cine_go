@@ -318,7 +318,7 @@ const Home = () => {
                           marginBottom: 2,
                         }}
                       >
-                        {film.genre} • {film.duree} min
+                        {film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : film.genre || 'N/A'} • {film.duree} min
                       </Typography>
                       <Typography
                         variant="body2"

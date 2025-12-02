@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "fix-salles": "node scripts/fix-salles-cinema.js"
+    "fix-salles": "node scripts/fix-salles-cinema.js",
+    "init-genres": "node scripts/initGenres.js",
+    "migrate-genres": "node scripts/migrateGenres.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

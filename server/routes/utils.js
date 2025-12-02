@@ -3,6 +3,7 @@ const Salle = require('../models/Salle');
 const Cinema = require('../models/Cinema');
 const Seance = require('../models/Seance');
 const { auth, admin } = require('../middleware/auth');
+const { sendTestEmail } = require('../utils/emailService');
 const router = express.Router();
 
 // Route utilitaire pour vérifier et corriger les salles sans cinéma (admin)
@@ -118,6 +119,43 @@ router.get('/check-salles', auth, admin, async (req, res) => {
     });
     
     res.json(statut);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Route pour tester l'envoi d'email (admin)
+router.post('/test-email', auth, admin, async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email de destination requis' });
+    }
+    
+    // Valider le format de l'email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Format d\'email invalide' });
+    }
+    
+    const result = await sendTestEmail(email);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: 'Email de test envoyé avec succès',
+        previewUrl: result.previewUrl,
+        email: result.email,
+        isLocal: result.isLocal
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi de l\'email',
+        error: result.error
+      });
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

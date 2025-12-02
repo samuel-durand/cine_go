@@ -239,7 +239,7 @@ router.get('/', async (req, res) => {
 router.get('/all', auth, admin, async (req, res) => {
   try {
     const seances = await Seance.find()
-      .populate('film', 'titre duree image')
+      .populate({ path: 'film', select: 'titre duree image', populate: { path: 'genre', select: 'nom' } })
       .populate({
         path: 'salle',
         select: 'nom type capacite cinema',
@@ -259,7 +259,7 @@ router.get('/all', auth, admin, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const seance = await Seance.findById(req.params.id)
-      .populate('film')
+      .populate({ path: 'film', populate: { path: 'genre', select: 'nom' } })
       .populate({
         path: 'salle',
         select: 'nom type capacite cinema',
@@ -320,7 +320,7 @@ router.post('/', auth, admin, async (req, res) => {
     });
 
     const seancePopulated = await Seance.findById(seance._id)
-      .populate('film', 'titre duree image')
+      .populate({ path: 'film', select: 'titre duree image', populate: { path: 'genre', select: 'nom' } })
       .populate({
         path: 'salle',
         select: 'nom type capacite cinema',
@@ -356,7 +356,7 @@ router.put('/:id', auth, admin, async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     )
-      .populate('film', 'titre duree image')
+      .populate({ path: 'film', select: 'titre duree image', populate: { path: 'genre', select: 'nom' } })
       .populate({
         path: 'salle',
         select: 'nom type capacite cinema',
@@ -384,7 +384,7 @@ router.put('/:id/block', auth, admin, async (req, res) => {
       { bloque, raisonBlocage: raisonBlocage || '' },
       { new: true, runValidators: true }
     )
-      .populate('film', 'titre duree image')
+      .populate({ path: 'film', select: 'titre duree image', populate: { path: 'genre', select: 'nom' } })
       .populate({
         path: 'salle',
         select: 'nom type capacite cinema',
@@ -440,7 +440,7 @@ router.put('/planning/:salleId/block-date', auth, admin, async (req, res) => {
         $lte: endDate
       }
     })
-      .populate('film', 'titre duree image')
+      .populate({ path: 'film', select: 'titre duree image', populate: { path: 'genre', select: 'nom' } })
       .populate('salle', 'nom type capacite')
       .sort({ date: 1, heure: 1 });
     
@@ -484,7 +484,7 @@ router.get('/planning/:salleId', auth, admin, async (req, res) => {
     }
 
     const seances = await Seance.find(query)
-      .populate('film', 'titre duree image')
+      .populate({ path: 'film', select: 'titre duree image', populate: { path: 'genre', select: 'nom' } })
       .populate('salle', 'nom type capacite')
       .sort({ date: 1, heure: 1 });
     

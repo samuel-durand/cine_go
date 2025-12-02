@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Container,
@@ -16,14 +16,15 @@ import {
   Rating,
   Divider
 } from '@mui/material';
-import { AccessTime, Room, Euro, Star, LocationOn } from '@mui/icons-material';
-import { MenuItem } from '@mui/material';
+import { AccessTime, Room, Euro, Star, LocationOn, Comment, Send, Edit, Delete, Reply } from '@mui/icons-material';
+import { MenuItem, Avatar, IconButton } from '@mui/material';
 import { AuthContext } from '../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const FilmDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const [film, setFilm] = useState(null);
   const [seances, setSeances] = useState([]);
@@ -35,6 +36,13 @@ const FilmDetail = () => {
   const [averageRating, setAverageRating] = useState(0);
   const [totalRatings, setTotalRatings] = useState(0);
   const [ratingLoading, setRatingLoading] = useState(false);
+  const [commentaires, setCommentaires] = useState([]);
+  const [myCommentaire, setMyCommentaire] = useState(null);
+  const [commentaireText, setCommentaireText] = useState('');
+  const [commentaireRating, setCommentaireRating] = useState(0);
+  const [commentaireLoading, setCommentaireLoading] = useState(false);
+  const [reponses, setReponses] = useState({}); // Pour stocker les réponses en cours d'édition
+  const [reponseTexts, setReponseTexts] = useState({}); // Pour stocker les textes de réponse
 
   const fetchFilm = useCallback(async () => {
     try {
@@ -174,11 +182,137 @@ const FilmDetail = () => {
     }
   }, [id, selectedDate]);
 
+  const fetchCommentaires = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_URL}/commentaires/film/${id}`);
+      setCommentaires(response.data);
+    } catch (error) {
+      console.error('Erreur lors du chargement des commentaires:', error);
+    }
+  }, [id]);
+
+  const fetchMyCommentaire = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/commentaires/film/${id}/my-comment`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setMyCommentaire(response.data);
+      setCommentaireText(response.data.commentaire);
+      setCommentaireRating(response.data.rating);
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.error('Erreur lors du chargement de votre commentaire:', error);
+      }
+    }
+  }, [id, user]);
+
+  const handleSubmitCommentaire = async () => {
+    if (!user) {
+      alert('Veuillez vous connecter pour laisser un commentaire.');
+      return;
+    }
+
+    if (!commentaireText.trim()) {
+      alert('Veuillez saisir un commentaire.');
+      return;
+    }
+
+    if (commentaireRating === 0) {
+      alert('Veuillez donner une note.');
+      return;
+    }
+
+    setCommentaireLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/commentaires/film/${id}`,
+        {
+          commentaire: commentaireText.trim(),
+          rating: commentaireRating
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      // Recharger les commentaires et le commentaire de l'utilisateur
+      await fetchCommentaires();
+      await fetchMyCommentaire();
+      alert('Commentaire ajouté avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du commentaire:', error);
+      alert(error.response?.data?.message || 'Erreur lors de l\'ajout du commentaire');
+    } finally {
+      setCommentaireLoading(false);
+    }
+  };
+
+  const handleSubmitReponse = async (commentaireId) => {
+    const texte = reponseTexts[commentaireId];
+    if (!texte || !texte.trim()) {
+      alert('Veuillez saisir une réponse.');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/commentaires/${commentaireId}/reponse`,
+        { texte: texte.trim() },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      await fetchCommentaires();
+      setReponses({ ...reponses, [commentaireId]: false });
+      setReponseTexts({ ...reponseTexts, [commentaireId]: '' });
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de la réponse:', error);
+      alert(error.response?.data?.message || 'Erreur lors de l\'ajout de la réponse');
+    }
+  };
+
+  const handleDeleteReponse = async (commentaireId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette réponse ?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(
+        `${API_URL}/commentaires/${commentaireId}/reponse`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      await fetchCommentaires();
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la réponse:', error);
+      alert(error.response?.data?.message || 'Erreur lors de la suppression de la réponse');
+    }
+  };
+
   useEffect(() => {
     fetchFilm();
     fetchSeances();
     fetchUserRating();
-  }, [fetchFilm, fetchSeances, fetchUserRating]);
+    fetchCommentaires();
+    fetchMyCommentaire();
+  }, [fetchFilm, fetchSeances, fetchUserRating, fetchCommentaires, fetchMyCommentaire]);
 
   if (loading) {
     return (
@@ -350,7 +484,7 @@ const FilmDetail = () => {
             </Typography>
 
             <Box className="mb-4 flex flex-wrap gap-2">
-              <Chip label={film.genre} color="primary" />
+              <Chip label={film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : film.genre || 'N/A'} color="primary" />
               <Chip label={`${film.duree} min`} />
               <Chip 
                 icon={<Star sx={{ color: '#FFD700' }} />}
@@ -388,6 +522,44 @@ const FilmDetail = () => {
             )}
             
             <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+
+            {/* Trailer YouTube */}
+            {film.trailerUrl && (
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" className="mb-2 font-semibold" sx={{ color: '#FFD700' }}>
+                  Bande-annonce
+                </Typography>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    paddingBottom: '56.25%', // 16:9 aspect ratio
+                    height: 0,
+                    overflow: 'hidden',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  }}
+                >
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src={film.trailerUrl.includes('youtube.com') || film.trailerUrl.includes('youtu.be')
+                      ? film.trailerUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')
+                      : film.trailerUrl}
+                    title="Trailer"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                    }}
+                  />
+                </Box>
+              </Box>
+            )}
 
             <Typography variant="h6" className="mb-2 font-semibold" sx={{ color: '#FFD700' }}>
               Description
@@ -445,7 +617,76 @@ const FilmDetail = () => {
               type="date"
               label="Sélectionner une date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={async (e) => {
+                const newDate = e.target.value;
+                setSelectedDate(newDate);
+                
+                // Trouver la séance la plus proche pour cette date
+                try {
+                  const response = await axios.get(`${API_URL}/seances`, {
+                    params: { filmId: id, date: newDate }
+                  });
+
+                  if (response.data && response.data.length > 0) {
+                    // Filtrer les séances valides (actives, non bloquées, avec places disponibles)
+                    const validSeances = response.data.filter(seance => 
+                      seance.actif && 
+                      !seance.bloque && 
+                      seance.placesDisponibles > 0 &&
+                      seance.date &&
+                      seance.heure
+                    );
+
+                    if (validSeances.length > 0) {
+                      // Créer une date complète avec la date sélectionnée et l'heure actuelle
+                      const selectedDateObj = new Date(newDate + 'T00:00:00.000Z');
+                      const now = new Date();
+                      
+                      // Si la date sélectionnée est aujourd'hui, utiliser l'heure actuelle
+                      // Sinon, utiliser minuit
+                      const referenceTime = selectedDateObj.toDateString() === now.toDateString() 
+                        ? now 
+                        : selectedDateObj;
+
+                      let nearestSeance = null;
+                      let minDiff = Infinity;
+
+                      // Trouver la séance la plus proche de la date/heure de référence
+                      validSeances.forEach(seance => {
+                        const [hours, minutes] = seance.heure.split(':').map(Number);
+                        const seanceDateTime = new Date(seance.date);
+                        seanceDateTime.setHours(hours, minutes, 0, 0);
+
+                        const diff = Math.abs(seanceDateTime.getTime() - referenceTime.getTime());
+
+                        // Si la date sélectionnée est dans le futur, ne prendre que les séances futures
+                        // Si c'est aujourd'hui ou dans le passé, prendre la plus proche en valeur absolue
+                        if (selectedDateObj >= new Date(now.toDateString())) {
+                          // Date future ou aujourd'hui : prendre seulement les séances futures ou actuelles
+                          if (seanceDateTime >= now && diff < minDiff) {
+                            minDiff = diff;
+                            nearestSeance = seance;
+                          }
+                        } else {
+                          // Date passée : prendre la plus proche en valeur absolue
+                          if (diff < minDiff) {
+                            minDiff = diff;
+                            nearestSeance = seance;
+                          }
+                        }
+                      });
+
+                      // Si on a trouvé une séance, rediriger vers la réservation
+                      if (nearestSeance) {
+                        navigate(`/reservation/${nearestSeance._id}`);
+                      }
+                    }
+                  }
+                } catch (error) {
+                  console.error('Erreur lors de la recherche de séance:', error);
+                  // En cas d'erreur, on continue normalement avec le changement de date
+                }
+              }}
               InputLabelProps={{ shrink: true }}
               sx={{
                 minWidth: 200,
@@ -605,6 +846,278 @@ const FilmDetail = () => {
             </Card>
           ))
         )}
+        </Box>
+
+        {/* Section Commentaires */}
+        <Box sx={{ mt: 6 }}>
+          <Typography
+            variant="h5"
+            sx={{
+              mb: 3,
+              fontWeight: 700,
+              color: '#FFD700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <Comment sx={{ fontSize: 28 }} />
+            Commentaires ({commentaires.length})
+          </Typography>
+
+          {/* Formulaire de commentaire */}
+          {user && (
+            <Card
+              sx={{
+                mb: 4,
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '16px',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              }}
+            >
+              <CardContent>
+                <Typography variant="h6" sx={{ mb: 2, color: '#FFD700' }}>
+                  {myCommentaire ? 'Modifier votre commentaire' : 'Laisser un commentaire'}
+                </Typography>
+                
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" sx={{ mb: 1, color: '#CCCCCC' }}>
+                    Votre note
+                  </Typography>
+                  <Rating
+                    value={commentaireRating}
+                    onChange={(event, newValue) => setCommentaireRating(newValue || 0)}
+                    max={10}
+                    size="large"
+                    sx={{
+                      '& .MuiRating-iconFilled': {
+                        color: '#FFD700',
+                      },
+                      '& .MuiRating-iconEmpty': {
+                        color: 'rgba(255, 215, 0, 0.3)',
+                      },
+                    }}
+                  />
+                </Box>
+
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  placeholder="Partagez votre avis sur ce film..."
+                  value={commentaireText}
+                  onChange={(e) => setCommentaireText(e.target.value)}
+                  sx={{
+                    mb: 2,
+                    '& .MuiOutlinedInput-root': {
+                      color: '#FFFFFF',
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      '& fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(255, 215, 0, 0.5)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: 'rgba(255, 215, 0, 0.7)',
+                      },
+                    },
+                  }}
+                />
+
+                <Button
+                  variant="contained"
+                  onClick={handleSubmitCommentaire}
+                  disabled={commentaireLoading || !commentaireText.trim() || commentaireRating === 0}
+                  startIcon={<Send />}
+                  sx={{
+                    backgroundColor: '#FFD700',
+                    color: '#000000',
+                    '&:hover': {
+                      backgroundColor: '#FFA500',
+                    },
+                    '&:disabled': {
+                      backgroundColor: 'rgba(255, 215, 0, 0.3)',
+                      color: 'rgba(255, 255, 255, 0.5)',
+                    },
+                  }}
+                >
+                  {commentaireLoading ? 'Envoi...' : myCommentaire ? 'Modifier' : 'Publier'}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Liste des commentaires */}
+          {commentaires.length === 0 ? (
+            <Alert severity="info" sx={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#CCCCCC' }}>
+              Aucun commentaire pour le moment. Soyez le premier à donner votre avis !
+            </Alert>
+          ) : (
+            commentaires.map((commentaire) => (
+              <Card
+                key={commentaire._id}
+                sx={{
+                  mb: 2,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '16px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                }}
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                    <Avatar sx={{ bgcolor: '#FFD700', color: '#000000' }}>
+                      {commentaire.user?.prenom?.[0] || commentaire.user?.nom?.[0] || 'U'}
+                    </Avatar>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle1" sx={{ color: '#FFFFFF', fontWeight: 'bold' }}>
+                        {commentaire.user?.prenom} {commentaire.user?.nom}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                        <Rating
+                          value={commentaire.rating}
+                          readOnly
+                          max={10}
+                          size="small"
+                          sx={{
+                            '& .MuiRating-iconFilled': {
+                              color: '#FFD700',
+                            },
+                            '& .MuiRating-iconEmpty': {
+                              color: 'rgba(255, 215, 0, 0.3)',
+                            },
+                          }}
+                        />
+                        <Typography variant="caption" sx={{ color: '#CCCCCC' }}>
+                          {new Date(commentaire.createdAt).toLocaleDateString('fr-FR')}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  <Typography variant="body1" sx={{ color: '#CCCCCC', mb: 2 }}>
+                    {commentaire.commentaire}
+                  </Typography>
+
+                  {/* Réponse existante */}
+                  {commentaire.reponse?.texte && (
+                    <Box
+                      sx={{
+                        ml: 4,
+                        pl: 2,
+                        borderLeft: '3px solid #FFD700',
+                        backgroundColor: 'rgba(255, 215, 0, 0.05)',
+                        borderRadius: '8px',
+                        py: 1.5,
+                        mb: 2,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Avatar sx={{ width: 24, height: 24, bgcolor: '#FFD700', color: '#000000', fontSize: 12 }}>
+                          {commentaire.reponse.reponduPar?.prenom?.[0] || commentaire.reponse.reponduPar?.nom?.[0] || 'A'}
+                        </Avatar>
+                        <Typography variant="caption" sx={{ color: '#FFD700', fontWeight: 'bold' }}>
+                          {commentaire.reponse.reponduPar?.prenom} {commentaire.reponse.reponduPar?.nom}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#CCCCCC' }}>
+                          • {new Date(commentaire.reponse.reponduLe).toLocaleDateString('fr-FR')}
+                        </Typography>
+                        {(user?.id === commentaire.reponse.reponduPar?._id || user?.role === 'admin') && (
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteReponse(commentaire._id)}
+                            sx={{ ml: 'auto', color: '#FF6B6B' }}
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Box>
+                      <Typography variant="body2" sx={{ color: '#CCCCCC' }}>
+                        {commentaire.reponse.texte}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Formulaire de réponse */}
+                  {!commentaire.reponse?.texte && user && (
+                    <Box sx={{ ml: 4 }}>
+                      {reponses[commentaire._id] ? (
+                        <Box sx={{ mt: 2 }}>
+                          <TextField
+                            fullWidth
+                            multiline
+                            rows={2}
+                            placeholder="Répondre au commentaire..."
+                            value={reponseTexts[commentaire._id] || ''}
+                            onChange={(e) => setReponseTexts({ ...reponseTexts, [commentaire._id]: e.target.value })}
+                            sx={{
+                              mb: 1,
+                              '& .MuiOutlinedInput-root': {
+                                color: '#FFFFFF',
+                                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                '& fieldset': {
+                                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                                },
+                              },
+                            }}
+                          />
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => handleSubmitReponse(commentaire._id)}
+                              disabled={!reponseTexts[commentaire._id]?.trim()}
+                              sx={{
+                                backgroundColor: '#FFD700',
+                                color: '#000000',
+                                '&:hover': {
+                                  backgroundColor: '#FFA500',
+                                },
+                              }}
+                            >
+                              Envoyer
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                setReponses({ ...reponses, [commentaire._id]: false });
+                                setReponseTexts({ ...reponseTexts, [commentaire._id]: '' });
+                              }}
+                              sx={{
+                                borderColor: 'rgba(255, 255, 255, 0.3)',
+                                color: '#CCCCCC',
+                              }}
+                            >
+                              Annuler
+                            </Button>
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Button
+                          size="small"
+                          startIcon={<Reply />}
+                          onClick={() => setReponses({ ...reponses, [commentaire._id]: true })}
+                          sx={{
+                            color: '#FFD700',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                            },
+                          }}
+                        >
+                          Répondre
+                        </Button>
+                      )}
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </Box>
       </Container>
     </Box>

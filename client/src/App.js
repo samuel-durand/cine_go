@@ -21,6 +21,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const History = lazy(() => import('./pages/History'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminFilms = lazy(() => import('./pages/admin/AdminFilms'));
+const AdminGenres = lazy(() => import('./pages/admin/AdminGenres'));
 const AdminCinemas = lazy(() => import('./pages/admin/AdminCinemas'));
 const AdminSalles = lazy(() => import('./pages/admin/AdminSalles'));
 const AdminSeances = lazy(() => import('./pages/admin/AdminSeances'));
@@ -170,6 +171,14 @@ function App() {
                   element={
                     <PrivateRoute adminOnly>
                       <AdminFilms />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/admin/genres"
+                  element={
+                    <PrivateRoute adminOnly>
+                      <AdminGenres />
                     </PrivateRoute>
                   }
                 />

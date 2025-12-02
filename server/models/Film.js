@@ -16,7 +16,8 @@ const filmSchema = new mongoose.Schema({
     min: 1
   },
   genre: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Genre',
     required: true
   },
   realisateur: {
@@ -29,6 +30,11 @@ const filmSchema = new mongoose.Schema({
   image: {
     type: String,
     default: ''
+  },
+  trailerUrl: {
+    type: String,
+    default: '',
+    trim: true
   },
   dateSortie: {
     type: Date,

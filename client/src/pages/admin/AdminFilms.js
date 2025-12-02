@@ -22,11 +22,13 @@ import {
   Chip
 } from '@mui/material';
 import { Add, Edit, Delete, Movie } from '@mui/icons-material';
+import { MenuItem, Select, FormControl, InputLabel } from '@mui/material';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const AdminFilms = () => {
   const [films, setFilms] = useState([]);
+  const [genres, setGenres] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingFilm, setEditingFilm] = useState(null);
@@ -38,6 +40,7 @@ const AdminFilms = () => {
     realisateur: '',
     acteurs: '',
     image: '',
+    trailerUrl: '',
     dateSortie: '',
     note: '',
     prix: '',
@@ -49,7 +52,20 @@ const AdminFilms = () => {
 
   useEffect(() => {
     fetchFilms();
+    fetchGenres();
   }, []);
+
+  const fetchGenres = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/genres/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setGenres(response.data);
+    } catch (error) {
+      console.error('Erreur lors du chargement des genres:', error);
+    }
+  };
 
   const fetchFilms = async () => {
     try {
@@ -67,8 +83,10 @@ const AdminFilms = () => {
       setEditingFilm(film);
       setFormData({
         ...film,
+        genre: film.genre?._id || film.genre || '',
         acteurs: film.acteurs?.join(', ') || '',
-        dateSortie: film.dateSortie ? new Date(film.dateSortie).toISOString().split('T')[0] : ''
+        dateSortie: film.dateSortie ? new Date(film.dateSortie).toISOString().split('T')[0] : '',
+        trailerUrl: film.trailerUrl || ''
       });
       setPreviewImage(film.image || null);
     } else {
@@ -81,6 +99,7 @@ const AdminFilms = () => {
         realisateur: '',
         acteurs: '',
         image: '',
+        trailerUrl: '',
         dateSortie: '',
         note: '',
         prix: '',
@@ -101,12 +120,27 @@ const AdminFilms = () => {
     const file = e.target.files[0];
     if (file) {
       setImageFile(file);
+      // Réinitialiser l'URL de l'image si un fichier est sélectionné
+      setFormData(prev => ({ ...prev, image: '' }));
       // Créer une preview
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewImage(reader.result);
+        if (reader.result) {
+          setPreviewImage(reader.result);
+        } else {
+          console.error('Aucun résultat de lecture du fichier');
+          setPreviewImage(null);
+        }
+      };
+      reader.onerror = () => {
+        console.error('Erreur lors de la lecture du fichier');
+        setPreviewImage(null);
       };
       reader.readAsDataURL(file);
+    } else {
+      // Si aucun fichier n'est sélectionné, réinitialiser
+      setImageFile(null);
+      setPreviewImage(null);
     }
   };
 
@@ -121,6 +155,7 @@ const AdminFilms = () => {
       submitData.append('genre', formData.genre);
       submitData.append('realisateur', formData.realisateur);
       submitData.append('acteurs', formData.acteurs);
+      submitData.append('trailerUrl', formData.trailerUrl || '');
       submitData.append('dateSortie', formData.dateSortie);
       submitData.append('prix', formData.prix);
       submitData.append('note', formData.note || '0');
@@ -210,7 +245,7 @@ const AdminFilms = () => {
             {films.map((film) => (
               <TableRow key={film._id}>
                 <TableCell>{film.titre}</TableCell>
-                <TableCell>{film.genre}</TableCell>
+                <TableCell>{film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : 'N/A'}</TableCell>
                 <TableCell>{film.duree} min</TableCell>
                 <TableCell>{film.prix} €</TableCell>
                 <TableCell>
@@ -265,12 +300,20 @@ const AdminFilms = () => {
                   onChange={(e) => setFormData({ ...formData, duree: e.target.value })}
                   required
                 />
-                <TextField
-                  label="Genre"
-                  value={formData.genre}
-                  onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
-                  required
-                />
+                <FormControl fullWidth required>
+                  <InputLabel>Genre</InputLabel>
+                  <Select
+                    value={formData.genre}
+                    label="Genre"
+                    onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
+                  >
+                    {genres.filter(g => g.actif).map((genre) => (
+                      <MenuItem key={genre._id} value={genre._id}>
+                        {genre.nom.charAt(0).toUpperCase() + genre.nom.slice(1)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
               <TextField
                 fullWidth
@@ -285,6 +328,14 @@ const AdminFilms = () => {
                 value={formData.acteurs}
                 onChange={(e) => setFormData({ ...formData, acteurs: e.target.value })}
               />
+              <TextField
+                fullWidth
+                label="URL du trailer YouTube"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={formData.trailerUrl}
+                onChange={(e) => setFormData({ ...formData, trailerUrl: e.target.value })}
+                helperText="Collez l'URL complète du trailer YouTube (ex: https://www.youtube.com/watch?v=...) ou l'URL courte (ex: https://youtu.be/...)"
+              />
               <Box>
                 <Typography variant="body2" sx={{ mb: 1, color: '#CCCCCC' }}>
                   Image du film
@@ -295,6 +346,7 @@ const AdminFilms = () => {
                   id="image-upload"
                   type="file"
                   onChange={handleImageChange}
+                  key={imageFile ? 'file-selected' : 'no-file'}
                 />
                 <label htmlFor="image-upload">
                   <Button
@@ -313,18 +365,48 @@ const AdminFilms = () => {
                     {imageFile ? 'Changer l\'image' : 'Choisir une image'}
                   </Button>
                 </label>
-                {(previewImage || formData.image) && (
+                {(previewImage || (formData.image && !imageFile)) && (
                   <Box sx={{ mt: 2, mb: 2 }}>
-                    <img
-                      src={previewImage || (formData.image?.startsWith('/') ? `${API_URL}${formData.image}` : formData.image)}
-                      alt="Preview"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '300px',
-                        borderRadius: '8px',
-                        objectFit: 'cover',
-                      }}
-                    />
+                    {previewImage ? (
+                      <img
+                        src={previewImage}
+                        alt="Preview"
+                        onError={(e) => {
+                          console.error('Erreur de chargement de l\'image');
+                          e.target.style.display = 'none';
+                        }}
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '300px',
+                          borderRadius: '8px',
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
+                      />
+                    ) : (
+                      formData.image && (
+                        <img
+                          src={formData.image?.startsWith('/') ? `${API_URL}${formData.image}` : formData.image}
+                          alt="Preview"
+                          onError={(e) => {
+                            console.error('Erreur de chargement de l\'image');
+                            e.target.style.display = 'none';
+                          }}
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '300px',
+                            borderRadius: '8px',
+                            objectFit: 'cover',
+                            display: 'block',
+                          }}
+                        />
+                      )
+                    )}
+                    {imageFile && (
+                      <Typography variant="caption" sx={{ mt: 1, display: 'block', color: '#CCCCCC' }}>
+                        Fichier sélectionné : {imageFile.name}
+                      </Typography>
+                    )}
                   </Box>
                 )}
                 {!imageFile && (

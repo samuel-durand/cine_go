@@ -40,7 +40,7 @@ const Films = () => {
 
   const filteredFilms = films.filter(film =>
     film.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    film.genre.toLowerCase().includes(searchTerm.toLowerCase())
+    (film.genre?.nom || film.genre || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -175,7 +175,7 @@ const Films = () => {
                         marginBottom: 2,
                       }}
                     >
-                      {film.genre} • {film.duree} min
+                      {film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : film.genre || 'N/A'} • {film.duree} min
                     </Typography>
                     <Typography
                       variant="body2"

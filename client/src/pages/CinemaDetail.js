@@ -369,7 +369,7 @@ const CinemaDetail = () => {
                         {film.titre}
                       </Typography>
                       <Box sx={{ mb: 2 }}>
-                        <Chip label={film.genre} size="small" sx={{ mr: 1 }} />
+                        <Chip label={film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : film.genre || 'N/A'} size="small" sx={{ mr: 1 }} />
                         <Chip label={`${film.duree} min`} size="small" />
                       </Box>
                       <Button
