@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const path = require('path');
 const Salle = require('../models/Salle');
+const Cinema = require('../models/Cinema');
 
 // Charger le .env depuis le dossier server/
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
@@ -96,16 +97,33 @@ async function initSalles() {
     await mongoose.connect(MONGODB_URI);
     console.log('✅ Connecté à MongoDB');
 
+    // Les salles doivent être rattachées à un cinéma : on réutilise le premier
+    // cinéma actif, ou on en crée un par défaut s'il n'y en a aucun.
+    let cinema = await Cinema.findOne({ actif: true });
+    if (!cinema) {
+      cinema = await Cinema.create({
+        nom: 'Ciné Go Paris',
+        adresse: '1 Place du Cinéma',
+        ville: 'Paris',
+        codePostal: '75001',
+        description: 'Cinéma principal créé automatiquement par initSalles.js',
+        actif: true
+      });
+      console.log(`✅ Cinéma par défaut créé: "${cinema.nom}"`);
+    } else {
+      console.log(`ℹ️  Salles rattachées au cinéma existant: "${cinema.nom}"`);
+    }
+
     let created = 0;
     let skipped = 0;
 
     for (const salleData of sallesParDefaut) {
-      const existingSalle = await Salle.findOne({ nom: salleData.nom });
+      const existingSalle = await Salle.findOne({ nom: salleData.nom, cinema: cinema._id });
       if (existingSalle) {
         console.log(`⏭️  Salle "${salleData.nom}" existe déjà, ignorée.`);
         skipped++;
       } else {
-        await Salle.create(salleData);
+        await Salle.create({ ...salleData, cinema: cinema._id });
         console.log(`✅ Salle "${salleData.nom}" créée (${salleData.type}, ${salleData.capacite} places)`);
         created++;
       }

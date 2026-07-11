@@ -17,7 +17,7 @@ import {
   Divider,
   Chip
 } from '@mui/material';
-import { AccessTime, Room, CheckCircle } from '@mui/icons-material';
+import { AccessTime, Room, CheckCircle, Lock, CreditCard, ArrowBack, EventSeat } from '@mui/icons-material';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import SeatMap from '../components/SeatMap';
@@ -27,12 +27,14 @@ const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
 const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
 
 const CARD_ELEMENT_OPTIONS = {
+  hidePostalCode: true,
   style: {
     base: {
       color: '#ffffff',
       fontFamily: '"Roboto", "Helvetica Neue", sans-serif',
       fontSmoothing: 'antialiased',
       fontSize: '16px',
+      iconColor: '#90caf9',
       '::placeholder': { color: '#9ca3af' }
     },
     invalid: {
@@ -58,6 +60,8 @@ const ReservationContent = () => {
   const [success, setSuccess] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState(1); // 1: choix des places, 2: paiement
+  const [cardFocused, setCardFocused] = useState(false);
+  const [cardComplete, setCardComplete] = useState(false);
 
   const fetchSeance = useCallback(async () => {
     try {
@@ -236,13 +240,13 @@ const ReservationContent = () => {
   const canSubmit = seatsCount > 0;
 
   return (
-    <Container maxWidth="md" className="py-8">
+    <Container maxWidth="xl" className="py-8">
       <Typography variant="h4" component="h1" className="mb-6 font-bold">
         Réservation
       </Typography>
 
       <Grid container spacing={4}>
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12} md={hasSeatMap && step === 1 ? 9 : 8}>
           <Card
             sx={{
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -283,20 +287,12 @@ const ReservationContent = () => {
                       <Typography variant="subtitle1" className="mb-2 font-semibold">
                         Choisissez vos sièges
                       </Typography>
-                      <Box 
-                        sx={{ 
-                          width: '100%',
-                          overflow: 'auto',
-                          maxHeight: '70vh',
-                        }}
-                      >
-                        <SeatMap
-                          plan={seance.plan}
-                          reservedSeats={reservedSeats}
-                          selectedSeats={selectedSeats}
-                          onToggleSeat={handleSeatToggle}
-                        />
-                      </Box>
+                      <SeatMap
+                        plan={seance.plan}
+                        reservedSeats={reservedSeats}
+                        selectedSeats={selectedSeats}
+                        onToggleSeat={handleSeatToggle}
+                      />
                       {selectedSeats.length > 0 && (
                         <Box 
                           className="mt-4 p-3 rounded-lg"
@@ -368,20 +364,84 @@ const ReservationContent = () => {
                 </>
               ) : (
                 <form onSubmit={handleReservation}>
-                  <Box 
-                    className="mb-4 p-4 rounded-lg"
+                  {/* Résumé de la commande */}
+                  <Box
+                    className="mb-4 p-4"
+                    sx={{
+                      backgroundColor: 'rgba(144, 202, 249, 0.08)',
+                      border: '1px solid rgba(144, 202, 249, 0.25)',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 1,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <EventSeat sx={{ color: '#90caf9' }} />
+                      <Typography variant="body2">
+                        {hasSeatMap
+                          ? `${selectedSeats.length} siège${selectedSeats.length > 1 ? 's' : ''} : ${selectedSeats.map((s) => s.label).join(', ')}`
+                          : `${nombrePlaces} place${nombrePlaces > 1 ? 's' : ''}`}
+                      </Typography>
+                    </Box>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#90caf9' }}>
+                      {prixTotal} €
+                    </Typography>
+                  </Box>
+
+                  {/* Champ carte bancaire */}
+                  <Box
+                    className="mb-4 p-4"
                     sx={{
                       backgroundColor: 'rgba(255, 255, 255, 0.05)',
                       backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      border: cardError
+                        ? '1px solid rgba(239, 68, 68, 0.7)'
+                        : cardFocused
+                          ? '1px solid rgba(144, 202, 249, 0.8)'
+                          : '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: '16px',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+                      boxShadow: cardFocused
+                        ? '0 0 0 3px rgba(144, 202, 249, 0.15), 0 4px 16px rgba(0, 0, 0, 0.2)'
+                        : '0 4px 16px rgba(0, 0, 0, 0.2)',
+                      transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
                     }}
                   >
-                    <Typography variant="subtitle1" className="mb-2 font-semibold" sx={{ color: '#FFFFFF' }}>
-                      Informations de paiement
-                    </Typography>
-                    <CardElement options={CARD_ELEMENT_OPTIONS} onChange={(event) => setCardError(event.error?.message || '')} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CreditCard sx={{ color: '#90caf9' }} />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#fff' }}>
+                          Carte bancaire
+                        </Typography>
+                      </Box>
+                      {cardComplete && <CheckCircle sx={{ color: '#4CAF50', fontSize: 20 }} />}
+                    </Box>
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderRadius: '10px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                      }}
+                    >
+                      <CardElement
+                        options={CARD_ELEMENT_OPTIONS}
+                        onFocus={() => setCardFocused(true)}
+                        onBlur={() => setCardFocused(false)}
+                        onChange={(event) => {
+                          setCardError(event.error?.message || '');
+                          setCardComplete(event.complete);
+                        }}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1.5 }}>
+                      <Lock sx={{ fontSize: 14, color: 'rgba(255, 255, 255, 0.5)' }} />
+                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                        Paiement chiffré et sécurisé par Stripe
+                      </Typography>
+                    </Box>
                   </Box>
 
                   {cardError && (
@@ -402,6 +462,8 @@ const ReservationContent = () => {
                       size="large"
                       onClick={() => setStep(1)}
                       disabled={processing}
+                      startIcon={<ArrowBack />}
+                      sx={{ borderRadius: '12px', whiteSpace: 'nowrap', px: 3 }}
                     >
                       Retour
                     </Button>
@@ -410,9 +472,25 @@ const ReservationContent = () => {
                       fullWidth
                       variant="contained"
                       size="large"
-                      disabled={processing}
+                      disabled={processing || !cardComplete}
+                      startIcon={processing ? <CircularProgress size={18} color="inherit" /> : <Lock />}
+                      sx={{
+                        borderRadius: '12px',
+                        fontWeight: 700,
+                        textTransform: 'none',
+                        fontSize: '1rem',
+                        background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                        boxShadow: '0 4px 20px rgba(25, 118, 210, 0.4)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #1565c0 0%, #1e88e5 100%)',
+                          boxShadow: '0 6px 24px rgba(25, 118, 210, 0.55)',
+                        },
+                        '&.Mui-disabled': {
+                          background: 'rgba(255, 255, 255, 0.12)',
+                        },
+                      }}
                     >
-                      {processing ? 'Traitement en cours...' : 'Payer et confirmer'}
+                      {processing ? 'Traitement en cours...' : `Payer ${prixTotal} €`}
                     </Button>
                   </Box>
                 </form>
@@ -421,7 +499,7 @@ const ReservationContent = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={hasSeatMap && step === 1 ? 3 : 4}>
           <Card
             sx={{
               backgroundColor: 'rgba(255, 255, 255, 0.05)',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { adminPath } from '../../utils/adminUrl';
 import {
   Container,
   Typography,
@@ -208,7 +209,7 @@ const AdminDashboard = () => {
       icon: Movie,
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-      link: '/admin/films'
+      link: adminPath('/films')
     },
     {
       title: 'Genres',
@@ -216,7 +217,7 @@ const AdminDashboard = () => {
       icon: Category,
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-      link: '/admin/genres'
+      link: adminPath('/genres')
     },
     {
       title: 'Cinémas',
@@ -224,7 +225,7 @@ const AdminDashboard = () => {
       icon: Room,
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-      link: '/admin/cinemas'
+      link: adminPath('/cinemas')
     },
     {
       title: 'Salles',
@@ -232,7 +233,7 @@ const AdminDashboard = () => {
       icon: Room,
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-      link: '/admin/salles'
+      link: adminPath('/salles')
     },
     {
       title: 'Séances',
@@ -240,7 +241,7 @@ const AdminDashboard = () => {
       icon: Event,
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-      link: '/admin/seances'
+      link: adminPath('/seances')
     },
     {
       title: 'Réservations',
@@ -248,7 +249,7 @@ const AdminDashboard = () => {
       icon: Receipt,
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-      link: '/admin/reservations',
+      link: adminPath('/reservations'),
       subtitle: `${stats.reservationsAujourdhui} aujourd'hui`
     },
     {
@@ -257,7 +258,7 @@ const AdminDashboard = () => {
       icon: People,
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-      link: '/admin/users'
+      link: adminPath('/users')
     },
     {
       title: 'Revenus',
@@ -265,7 +266,7 @@ const AdminDashboard = () => {
       icon: Euro,
       color: '#FFD700',
       bgGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-      link: '/admin/reservations',
+      link: adminPath('/reservations'),
       iconBg: 'rgba(255, 215, 0, 0.1)'
     }
   ];
@@ -425,7 +426,7 @@ const AdminDashboard = () => {
             >
               <CardActionArea
                 component={Link}
-                to="/admin/planning"
+                to={adminPath('/planning')}
                 sx={{
                   padding: 3,
                   display: 'block',

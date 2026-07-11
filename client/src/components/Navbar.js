@@ -35,11 +35,12 @@ const Navbar = () => {
 
   return (
     <AppBar 
-      position="static" 
+      position="sticky" 
       sx={{ 
-        backgroundColor: '#000000',
-        boxShadow: 'none',
-        borderBottom: '1px solid rgba(255, 215, 0, 0.2)',
+        backgroundColor: 'rgba(10, 10, 14, 0.85)',
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4)',
+        borderBottom: '1px solid rgba(255, 215, 0, 0.15)',
       }}
     >
       <Toolbar 
@@ -51,22 +52,37 @@ const Navbar = () => {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-          <Movie sx={{ color: '#FFD700', mr: 1, fontSize: 28 }} />
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mr: 1.5,
+              boxShadow: '0 2px 12px rgba(255, 215, 0, 0.35)',
+            }}
+          >
+            <Movie sx={{ color: '#000000', fontSize: 22 }} />
+          </Box>
           <Typography 
             variant="h6" 
             component={Link} 
             to="/" 
             sx={{ 
-              color: '#FFD700',
+              color: '#FFFFFF',
               textDecoration: 'none',
-              fontWeight: 700,
+              fontWeight: 800,
               fontSize: '1.25rem',
+              letterSpacing: '-0.01em',
               '&:hover': {
-                opacity: 0.8,
+                opacity: 0.85,
               },
             }}
           >
-            Ciné Go
+            Ciné <Box component="span" sx={{ color: '#FFD700' }}>Go</Box>
           </Typography>
         </Box>
         

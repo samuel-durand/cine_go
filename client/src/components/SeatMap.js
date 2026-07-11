@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { Accessibility, CheckCircle } from '@mui/icons-material';
+import { Accessibility, CheckCircle, Close } from '@mui/icons-material';
 
 const SeatMap = ({
   plan,
@@ -15,30 +15,33 @@ const SeatMap = ({
   const getSeatStyle = (seat, isReserved, isSelected) => {
     if (isReserved) {
       return {
-        backgroundColor: '#e5e7eb',
-        color: '#6b7280',
-        border: '2px solid #9ca3af',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        color: 'rgba(255, 255, 255, 0.3)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
         cursor: 'not-allowed',
-        opacity: 0.6,
       };
     }
     if (isSelected) {
       return {
-        backgroundColor: '#10b981',
+        background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
         color: '#ffffff',
-        border: '2px solid #059669',
+        border: '1px solid #34d399',
         cursor: 'pointer',
+        boxShadow: '0 0 12px rgba(16, 185, 129, 0.5)',
+        transform: 'scale(1.08)',
       };
     }
     // Siège libre
     return {
-      backgroundColor: '#fbbf24',
-      color: '#78350f',
-      border: '2px solid #f59e0b',
+      backgroundColor: 'rgba(144, 202, 249, 0.12)',
+      color: '#90caf9',
+      border: '1px solid rgba(144, 202, 249, 0.4)',
       cursor: 'pointer',
       '&:hover': {
-        backgroundColor: '#f59e0b',
-        transform: 'scale(1.1)',
+        backgroundColor: 'rgba(144, 202, 249, 0.35)',
+        borderColor: '#90caf9',
+        transform: 'scale(1.15)',
+        boxShadow: '0 0 10px rgba(144, 202, 249, 0.4)',
       },
     };
   };
@@ -46,15 +49,14 @@ const SeatMap = ({
   // Grouper les rangées par blocs (basé sur les gaps dans le plan)
   const groupRowsIntoBlocks = () => {
     if (!plan?.rows) return [];
-    
+
     const blocks = [];
     let currentBlock = [];
-    
-    plan.rows.forEach((row, index) => {
-      // Si la rangée a moins de sièges, c'est probablement une allée ou un bloc séparé
+
+    plan.rows.forEach((row) => {
       const avgSeats = plan.rows.reduce((sum, r) => sum + (r.seats?.length || 0), 0) / plan.rows.length;
       const isSeparator = row.seats?.length < avgSeats * 0.5;
-      
+
       if (isSeparator && currentBlock.length > 0) {
         blocks.push(currentBlock);
         currentBlock = [];
@@ -62,58 +64,103 @@ const SeatMap = ({
         currentBlock.push(row);
       }
     });
-    
+
     if (currentBlock.length > 0) {
       blocks.push(currentBlock);
     }
-    
+
     return blocks.length > 0 ? blocks : [plan.rows];
   };
 
   const blocks = groupRowsIntoBlocks();
-  
-  // Calculer le nombre total de sièges pour adapter la taille
+
+  // Adapter la taille des sièges aux grandes salles
   const totalSeats = plan?.rows?.reduce((sum, row) => sum + (row.seats?.length || 0), 0) || 0;
   const isLargeHall = totalSeats > 150;
-  const seatSize = isLargeHall ? 28 : 36;
-  const seatGap = isLargeHall ? '2px' : '4px';
-  
-  // Trouver le nombre maximum de sièges dans une rangée pour calculer la largeur de l'écran
+  const seatSize = isLargeHall ? 32 : 40;
+  const seatGapPx = isLargeHall ? 4 : 6;
+  const labelWidth = 28;
+
   const maxSeatsPerRow = plan?.rows?.reduce((max, row) => Math.max(max, row.seats?.length || 0), 0) || 0;
-  const seatAreaWidth = maxSeatsPerRow * (seatSize + (parseInt(seatGap) || 4)) + parseInt(seatGap);
+  const seatAreaWidth = maxSeatsPerRow * seatSize + Math.max(0, maxSeatsPerRow - 1) * seatGapPx;
+
+  const legendItems = [
+    {
+      label: 'Libre',
+      box: {
+        backgroundColor: 'rgba(144, 202, 249, 0.12)',
+        border: '1px solid rgba(144, 202, 249, 0.4)',
+      },
+    },
+    {
+      label: 'Mes places',
+      box: {
+        background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+        border: '1px solid #34d399',
+      },
+      icon: <CheckCircle sx={{ fontSize: 13, color: '#fff' }} />,
+    },
+    {
+      label: 'Occupé',
+      box: {
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+      },
+      icon: <Close sx={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }} />,
+    },
+    {
+      label: 'Accessible',
+      box: {
+        backgroundColor: 'rgba(59, 130, 246, 0.25)',
+        border: '1px solid #3b82f6',
+      },
+      icon: <Accessibility sx={{ fontSize: 13, color: '#60a5fa' }} />,
+    },
+  ];
 
   return (
     <Box className="w-full">
-      {/* Plan de salle - scrollable pour les grandes salles */}
-      <Box 
-        className="bg-gray-100 rounded-lg mb-4"
+      {/* Salle */}
+      <Box
+        className="rounded-lg mb-4"
         sx={{
-          p: isLargeHall ? 3 : 6,
-          maxHeight: isLargeHall ? '600px' : 'none',
-          overflowY: isLargeHall ? 'auto' : 'visible',
+          p: { xs: 2, sm: 3 },
+          background: 'linear-gradient(180deg, rgba(13, 18, 30, 0.9) 0%, rgba(23, 30, 48, 0.9) 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '16px',
+          // Pas de scroll : la salle est visible en entier
+          // (overflowX en secours uniquement pour les très petits écrans)
           overflowX: 'auto',
         }}
       >
-        {/* Rangées principales */}
-        <Box className="space-y-2" sx={{ minWidth: 'fit-content', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {/* Tout le contenu partage la même colonne centrée : l'écran est
+            toujours aligné avec le bloc de sièges, quelle que soit la salle */}
+        <Box
+          sx={{
+            width: 'fit-content',
+            minWidth: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
+          {/* Rangées */}
           {blocks.map((block, blockIndex) => (
-            <Box key={blockIndex} className="flex flex-col items-center space-y-2" sx={{ width: '100%' }}>
+            <Box
+              key={blockIndex}
+              sx={{ display: 'flex', flexDirection: 'column', gap: `${seatGapPx + 2}px`, mb: blockIndex < blocks.length - 1 ? 3 : 0 }}
+            >
               {block.map((row) => (
-                <Box key={row.name} className="flex items-center gap-2" sx={{ width: '100%', justifyContent: 'center' }}>
-                  {/* Label de la rangée */}
+                <Box key={row.name} sx={{ display: 'flex', alignItems: 'center' }}>
+                  {/* Label symétrique des deux côtés pour un centrage parfait */}
                   <Typography
-                    variant="body2"
-                    className="font-bold text-gray-700 w-8 text-center"
-                    sx={{ flexShrink: 0 }}
+                    variant="caption"
+                    sx={{ width: labelWidth, flexShrink: 0, textAlign: 'center', fontWeight: 700, color: 'rgba(255, 255, 255, 0.45)' }}
                   >
                     {row.name}
                   </Typography>
-                  
-                  {/* Sièges de la rangée */}
-                  <Box 
-                    className="flex"
-                    sx={{ gap: seatGap, flexWrap: 'nowrap', justifyContent: 'center' }}
-                  >
+
+                  <Box sx={{ display: 'flex', gap: `${seatGapPx}px`, flexWrap: 'nowrap' }}>
                     {row.seats?.map((seat) => {
                       const isReserved = reservedSet.has(seat.seatId);
                       const isSelected = selectedSet.has(seat.seatId);
@@ -123,8 +170,6 @@ const SeatMap = ({
 
                       const handleClick = () => {
                         if (isReserved) return;
-                        // Permet de sélectionner/désélectionner n'importe quel siège libre
-                        // même s'il n'est pas adjacent aux autres sièges sélectionnés
                         onToggleSeat(seat);
                       };
 
@@ -142,6 +187,11 @@ const SeatMap = ({
                               {seat.type !== 'standard' && (
                                 <Typography variant="caption" display="block">
                                   Type: {seat.type}
+                                </Typography>
+                              )}
+                              {seat.priceModifier > 0 && (
+                                <Typography variant="caption" display="block">
+                                  Supplément: +{seat.priceModifier} €
                                 </Typography>
                               )}
                               {isReserved && (
@@ -166,200 +216,116 @@ const SeatMap = ({
                             sx={{
                               width: seatSize,
                               height: seatSize,
-                              borderRadius: '6px',
+                              // Forme de fauteuil : arrondi plus marqué en haut
+                              borderRadius: '8px 8px 4px 4px',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               position: 'relative',
-                              transition: 'all 0.2s',
+                              transition: 'all 0.15s ease',
                               flexShrink: 0,
                               ...seatStyle,
                             }}
                           >
-                            {/* Numéro du siège - visible au survol ou si sélectionné */}
-                            {(isHovered || isSelected) && (
-                              <Typography
-                                variant="caption"
-                                className="font-bold"
-                                sx={{ 
-                                  fontSize: isLargeHall ? '9px' : '10px',
-                                  lineHeight: 1,
-                                }}
-                              >
-                                {seat.number}
-                              </Typography>
+                            {isReserved ? (
+                              <Close sx={{ fontSize: isLargeHall ? 13 : 15, color: 'rgba(255,255,255,0.3)' }} />
+                            ) : (
+                              (isHovered || isSelected) && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{ fontSize: isLargeHall ? '9px' : '10px', lineHeight: 1, fontWeight: 700 }}
+                                >
+                                  {seat.number}
+                                </Typography>
+                              )
                             )}
-                            
-                            {/* Icône pour siège accessible */}
+
                             {isAccessible && !isReserved && (
                               <Accessibility
                                 sx={{
-                                  fontSize: isLargeHall ? 12 : 14,
+                                  fontSize: isLargeHall ? 11 : 13,
                                   position: 'absolute',
-                                  top: -2,
-                                  right: -2,
-                                  color: '#3b82f6',
-                                  backgroundColor: '#ffffff',
+                                  top: -3,
+                                  right: -3,
+                                  color: '#60a5fa',
+                                  backgroundColor: '#0d121e',
                                   borderRadius: '50%',
                                   padding: '1px',
                                 }}
                               />
-                            )}
-                            
-                            {/* Icône pour siège sélectionné */}
-                            {isSelected && (
-                              <CheckCircle
-                                sx={{
-                                  fontSize: isLargeHall ? 14 : 16,
-                                  position: 'absolute',
-                                  top: -4,
-                                  right: -4,
-                                  color: '#ffffff',
-                                  backgroundColor: '#10b981',
-                                  borderRadius: '50%',
-                                  border: '2px solid #ffffff',
-                                }}
-                              />
-                            )}
-                            
-                            {/* Icône personne pour siège réservé */}
-                            {isReserved && (
-                              <Box
-                                sx={{
-                                  width: isLargeHall ? 16 : 18,
-                                  height: isLargeHall ? 16 : 18,
-                                  borderRadius: '50%',
-                                  backgroundColor: '#9ca3af',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                <Typography
-                                  variant="caption"
-                                  sx={{ 
-                                    fontSize: isLargeHall ? '8px' : '9px', 
-                                    color: '#ffffff',
-                                    lineHeight: 1,
-                                  }}
-                                >
-                                  👤
-                                </Typography>
-                              </Box>
                             )}
                           </Box>
                         </Tooltip>
                       );
                     })}
                   </Box>
+
+                  <Box sx={{ width: labelWidth, flexShrink: 0 }} />
                 </Box>
               ))}
-              
-              {/* Espacement entre blocs */}
-              {blockIndex < blocks.length - 1 && (
-                <Box className="h-4" />
-              )}
             </Box>
           ))}
-        </Box>
 
-        {/* Écran en bas - centré par rapport aux sièges (sans les labels) */}
-        <Box className="mt-8 flex justify-center" sx={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>
-          <Box
-            sx={{
-              width: `${seatAreaWidth}px`,
-              minWidth: '200px',
-              maxWidth: '80%',
-              height: 8,
-              backgroundColor: '#fbbf24',
-              borderRadius: '8px 8px 0 0',
-              position: 'relative',
-              marginLeft: '40px', // Compenser le label de rangée (w-8 = 32px + gap)
-              '&::before': {
-                content: '"Écran"',
-                position: 'absolute',
-                top: -24,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                color: '#1f2937',
-              },
-            }}
-          />
+          {/* Écran */}
+          <Box sx={{ width: `${seatAreaWidth}px`, maxWidth: '100%', mt: 4 }}>
+            <Box
+              sx={{
+                height: 10,
+                width: '100%',
+                background: 'linear-gradient(0deg, #90caf9 0%, rgba(144, 202, 249, 0.3) 100%)',
+                borderRadius: '0 0 50% 50% / 0 0 100% 100%',
+                boxShadow: '0 6px 24px rgba(144, 202, 249, 0.45)',
+              }}
+            />
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                textAlign: 'center',
+                mt: 1,
+                letterSpacing: '0.4em',
+                textTransform: 'uppercase',
+                color: 'rgba(255, 255, 255, 0.5)',
+                fontWeight: 600,
+              }}
+            >
+              Écran
+            </Typography>
+          </Box>
         </Box>
       </Box>
 
       {/* Légende */}
-      <Box className="flex flex-wrap gap-4 items-center bg-white p-4 rounded-lg border">
-        <Box className="flex items-center gap-2">
-          <Box
-            sx={{
-              width: 24,
-              height: 24,
-              borderRadius: '6px',
-              backgroundColor: '#10b981',
-              border: '2px solid #059669',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <CheckCircle sx={{ fontSize: 14, color: '#ffffff' }} />
-          </Box>
-          <Typography variant="body2" sx={{ color: '#000000' }}>Mes places</Typography>
-        </Box>
-        
-        <Box className="flex items-center gap-2">
-          <Box
-            sx={{
-              width: 24,
-              height: 24,
-              borderRadius: '6px',
-              backgroundColor: '#fbbf24',
-              border: '2px solid #f59e0b',
-            }}
-          />
-          <Typography variant="body2" sx={{ color: '#000000' }}>Places libres</Typography>
-        </Box>
-        
-        <Box className="flex items-center gap-2">
-          <Box
-            sx={{
-              width: 24,
-              height: 24,
-              borderRadius: '6px',
-              backgroundColor: '#e5e7eb',
-              border: '2px solid #9ca3af',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Typography variant="caption" sx={{ fontSize: '10px' }}>
-              👤
+      <Box
+        className="flex flex-wrap items-center justify-center"
+        sx={{
+          gap: { xs: 2, sm: 3 },
+          p: 2,
+          backgroundColor: 'rgba(255, 255, 255, 0.04)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '12px',
+        }}
+      >
+        {legendItems.map((item) => (
+          <Box key={item.label} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{
+                width: 22,
+                height: 22,
+                borderRadius: '6px 6px 3px 3px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                ...item.box,
+              }}
+            >
+              {item.icon || null}
+            </Box>
+            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+              {item.label}
             </Typography>
           </Box>
-          <Typography variant="body2" sx={{ color: '#000000' }}>Places occupées</Typography>
-        </Box>
-        
-        <Box className="flex items-center gap-2">
-          <Box
-            sx={{
-              width: 24,
-              height: 24,
-              borderRadius: '6px',
-              backgroundColor: '#3b82f6',
-              border: '2px solid #2563eb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Accessibility sx={{ fontSize: 14, color: '#ffffff' }} />
-          </Box>
-          <Typography variant="body2" sx={{ color: '#000000' }}>Accessible</Typography>
-        </Box>
+        ))}
       </Box>
     </Box>
   );

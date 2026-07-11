@@ -14,7 +14,7 @@ import {
   TextField,
   InputAdornment
 } from '@mui/material';
-import { Movie, Search } from '@mui/icons-material';
+import { Movie, Search, AccessTime } from '@mui/icons-material';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -52,7 +52,7 @@ const Films = () => {
   }
 
   return (
-    <Box sx={{ backgroundColor: '#121212', minHeight: '100vh', py: 8 }}>
+    <Box sx={{ minHeight: '100vh', py: 8 }}>
       <Container maxWidth="lg">
         <Typography 
           variant="h2" 
@@ -60,15 +60,15 @@ const Films = () => {
           sx={{ 
             mb: 2, 
             fontWeight: 700,
-            color: '#FFD700',
+            letterSpacing: '-0.01em',
           }}
         >
-          Tous les films
+          Tous les <Box component="span" sx={{ color: '#FFD700' }}>films</Box>
         </Typography>
         <Typography
           variant="body1"
           sx={{
-            color: '#CCCCCC',
+            color: 'rgba(255, 255, 255, 0.55)',
             marginBottom: 4,
           }}
         >
@@ -138,49 +138,79 @@ const Films = () => {
                 }}
               >
                 <CardActionArea component={Link} to={`/films/${film._id}`}>
-                  {film.image ? (
-                    <CardMedia
-                      component="img"
-                      height="300"
-                      image={film.image}
-                      alt={film.titre}
-                    />
-                  ) : (
+                  <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+                    {film.image ? (
+                      <CardMedia
+                        component="img"
+                        height="300"
+                        image={film.image}
+                        alt={film.titre}
+                        sx={{
+                          objectFit: 'cover',
+                          transition: 'transform 0.4s ease',
+                          '.MuiCardActionArea-root:hover &': {
+                            transform: 'scale(1.05)',
+                          },
+                        }}
+                      />
+                    ) : (
+                      <Box
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        sx={{ backgroundColor: '#1c1d24', height: 300 }}
+                      >
+                        <Movie sx={{ fontSize: 80, color: '#3a3b45' }} />
+                      </Box>
+                    )}
                     <Box
-                      height="300"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      bgcolor="grey.200"
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'linear-gradient(180deg, transparent 60%, rgba(10, 10, 14, 0.9) 100%)',
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 12,
+                        left: 12,
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: '8px',
+                        backgroundColor: 'rgba(10, 10, 14, 0.75)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: '#FFD700',
+                      }}
                     >
-                      <Movie sx={{ fontSize: 80, color: 'grey.400' }} />
+                      {film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : 'N/A'}
                     </Box>
-                  )}
+                  </Box>
                   <CardContent sx={{ padding: 3, backgroundColor: 'transparent' }}>
                     <Typography
                       variant="h6"
                       component="h2"
                       sx={{
                         fontWeight: 700,
-                        marginBottom: 1,
+                        marginBottom: 0.5,
                         color: '#FFFFFF',
                       }}
                     >
                       {film.titre}
                     </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, marginBottom: 1.5 }}>
+                      <AccessTime sx={{ fontSize: 15, color: 'rgba(255, 255, 255, 0.45)' }} />
+                      <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.55)' }}>
+                        {film.duree} min
+                      </Typography>
+                    </Box>
                     <Typography
                       variant="body2"
                       sx={{
-                        color: '#CCCCCC',
-                        marginBottom: 2,
-                      }}
-                    >
-                      {film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : film.genre || 'N/A'} • {film.duree} min
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: '#CCCCCC',
+                        color: 'rgba(255, 255, 255, 0.55)',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',

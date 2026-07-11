@@ -45,42 +45,72 @@ const Home = () => {
   }
 
   return (
-    <Box sx={{ backgroundColor: '#121212', minHeight: '100vh' }}>
-      {/* Hero Section - Style Scrapy */}
+    <Box sx={{ minHeight: '100vh' }}>
+      {/* Hero Section */}
       <Box
         sx={{
-          backgroundColor: '#000000',
+          position: 'relative',
           color: '#FFFFFF',
-          padding: { xs: '60px 24px', md: '100px 24px' },
+          padding: { xs: '80px 24px', md: '130px 24px' },
           textAlign: 'center',
+          overflow: 'hidden',
+          background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(255, 215, 0, 0.12) 0%, transparent 60%), linear-gradient(180deg, #0a0a0e 0%, #0f1014 100%)',
         }}
       >
-        <Container maxWidth="lg">
+        <Container maxWidth="lg" sx={{ position: 'relative' }}>
+          <Typography
+            variant="body2"
+            sx={{
+              display: 'inline-block',
+              px: 2,
+              py: 0.75,
+              mb: 3,
+              borderRadius: '999px',
+              border: '1px solid rgba(255, 215, 0, 0.3)',
+              backgroundColor: 'rgba(255, 215, 0, 0.08)',
+              color: '#FFD700',
+              fontWeight: 600,
+            }}
+          >
+            🎬 Vos séances, en quelques clics
+          </Typography>
           <Typography
             variant="h1"
             sx={{
-              fontSize: { xs: '2.5rem', md: '4rem' },
-              fontWeight: 700,
+              fontSize: { xs: '2.5rem', md: '4.25rem' },
+              fontWeight: 800,
               marginBottom: 3,
-              color: '#FFD700',
-              lineHeight: 1.2,
+              lineHeight: 1.1,
+              letterSpacing: '-0.02em',
             }}
           >
-            Le cinéma à portée de main
+            Le cinéma à{' '}
+            <Box
+              component="span"
+              sx={{
+                background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              portée de main
+            </Box>
           </Typography>
           <Typography
             variant="h5"
             sx={{
-              fontSize: { xs: '1.1rem', md: '1.5rem' },
+              fontSize: { xs: '1.05rem', md: '1.3rem' },
               marginBottom: 4,
-              color: '#CCCCCC',
-              maxWidth: '800px',
+              color: 'rgba(255, 255, 255, 0.6)',
+              maxWidth: '680px',
               margin: '0 auto 40px',
-              lineHeight: 1.6,
+              lineHeight: 1.65,
+              fontWeight: 400,
             }}
           >
-            Réservez vos places de cinéma en quelques clics. 
-            Découvrez les derniers films à l'affiche et profitez d'une expérience cinématographique exceptionnelle.
+            Découvrez les derniers films à l'affiche, choisissez vos sièges sur plan
+            et payez en ligne en toute sécurité.
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Button
@@ -134,11 +164,13 @@ const Home = () => {
         </Container>
       </Box>
 
-      {/* Features Section - Style Scrapy */}
+      {/* Features Section */}
       <Box
         sx={{
           padding: { xs: '60px 24px', md: '80px 24px' },
-          backgroundColor: '#1a1a1a',
+          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
         }}
       >
         <Container maxWidth="lg">
@@ -232,7 +264,6 @@ const Home = () => {
       <Box
         sx={{
           padding: { xs: '60px 24px', md: '80px 24px' },
-          backgroundColor: '#121212',
         }}
       >
         <Container maxWidth="lg">
@@ -241,16 +272,16 @@ const Home = () => {
             sx={{
               fontWeight: 700,
               marginBottom: 1,
-              color: '#FFD700',
               textAlign: 'center',
+              letterSpacing: '-0.01em',
             }}
           >
-            Films à l'affiche
+            Films à <Box component="span" sx={{ color: '#FFD700' }}>l'affiche</Box>
           </Typography>
           <Typography
             variant="body1"
             sx={{
-              color: '#CCCCCC',
+              color: 'rgba(255, 255, 255, 0.55)',
               textAlign: 'center',
               marginBottom: 6,
             }}
@@ -280,50 +311,81 @@ const Home = () => {
                   }}
                 >
                   <CardActionArea component={Link} to={`/films/${film._id}`}>
-                    {film.image ? (
-                      <CardMedia
-                        component="img"
-                        height="400"
-                        image={film.image}
-                        alt={film.titre}
-                        sx={{ objectFit: 'cover' }}
-                      />
-                    ) : (
+                    <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+                      {film.image ? (
+                        <CardMedia
+                          component="img"
+                          height="400"
+                          image={film.image}
+                          alt={film.titre}
+                          sx={{
+                            objectFit: 'cover',
+                            transition: 'transform 0.4s ease',
+                            '.MuiCardActionArea-root:hover &': {
+                              transform: 'scale(1.05)',
+                            },
+                          }}
+                        />
+                      ) : (
+                        <Box
+                          height="400"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          sx={{ backgroundColor: '#1c1d24', height: 400 }}
+                        >
+                          <Movie sx={{ fontSize: 80, color: '#3a3b45' }} />
+                        </Box>
+                      )}
+                      {/* Dégradé pour la lisibilité + badge genre */}
                       <Box
-                        height="400"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        sx={{ backgroundColor: '#2d2d2d' }}
+                        sx={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(180deg, transparent 60%, rgba(10, 10, 14, 0.9) 100%)',
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 12,
+                          left: 12,
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(10, 10, 14, 0.75)',
+                          backdropFilter: 'blur(8px)',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: '#FFD700',
+                        }}
                       >
-                        <Movie sx={{ fontSize: 80, color: '#666666' }} />
+                        {film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : 'N/A'}
                       </Box>
-                    )}
+                    </Box>
                     <CardContent sx={{ padding: 3, backgroundColor: 'transparent' }}>
                       <Typography
                         variant="h6"
                         component="h2"
                         sx={{
                           fontWeight: 700,
-                          marginBottom: 1,
+                          marginBottom: 0.5,
                           color: '#FFFFFF',
                         }}
                       >
                         {film.titre}
                       </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, marginBottom: 1.5 }}>
+                        <AccessTime sx={{ fontSize: 15, color: 'rgba(255, 255, 255, 0.45)' }} />
+                        <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.55)' }}>
+                          {film.duree} min
+                        </Typography>
+                      </Box>
                       <Typography
                         variant="body2"
                         sx={{
-                          color: '#CCCCCC',
-                          marginBottom: 2,
-                        }}
-                      >
-                        {film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : film.genre || 'N/A'} • {film.duree} min
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: '#CCCCCC',
+                          color: 'rgba(255, 255, 255, 0.55)',
                           display: '-webkit-box',
                           WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical',
