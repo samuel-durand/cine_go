@@ -1,21 +1,17 @@
 import React, { useContext } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { CircularProgress, Box } from '@mui/material';
+import Loader from './common/Loader';
 
 const PrivateRoute = ({ children, adminOnly = false }) => {
   const { user, loading, isAdmin } = useContext(AuthContext);
+  const location = useLocation();
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return <Loader minHeight="80vh" />;
 
   if (!user) {
-    return <Navigate to="/login" />;
+    // Après connexion, l'utilisateur revient sur la page demandée (ex. une réservation)
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   if (adminOnly && !isAdmin) {
@@ -26,4 +22,3 @@ const PrivateRoute = ({ children, adminOnly = false }) => {
 };
 
 export default PrivateRoute;
-

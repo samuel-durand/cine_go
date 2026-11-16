@@ -1,236 +1,67 @@
-# Guide de Déploiement sur Railway
+# Déploiement (Railway)
 
-Ce guide explique comment déployer l'application CineGo (frontend et backend) sur Railway.
+L'application se déploie en deux services : l'API Flask (`server/`) et le front Vite (`client/`),
+plus une base MySQL.
 
-## ⚠️ Important : Structure des Branches
+## 1. Base MySQL
 
-- **Branche `main`** : Structure complète avec `server/` et `client/` pour le développement local
-  - Utilisez cette branche pour développer en local avec `npm run dev`
-  - Contient tous les dossiers (`server/` et `client/`) pour le développement complet
-  
-- **Branche `backend`** : Backend simplifié (tout à la racine) pour le déploiement Railway
-  - Cette branche a été créée spécialement pour Railway
-  - Tous les fichiers du serveur sont à la racine (pas de dossier `server/`)
-  - **Railway doit utiliser la branche `backend`** pour déployer le serveur
-  
-- **Branche `frontend`** : Frontend simplifié (tout à la racine) pour le déploiement Railway
-  - Cette branche a été créée spécialement pour Railway
-  - Tous les fichiers du frontend sont à la racine (pas de dossier `client/`)
-  - **Railway doit utiliser la branche `frontend`** pour déployer le frontend
-  
-- **Railway utilise les branches `backend` et `frontend`** (pas `main` pour le déploiement)
+Dans le projet Railway : **New → Database → MySQL**. Railway expose `MYSQL_URL`
+(`mysql://user:pass@host:port/railway`).
 
-## 🚀 Options de Déploiement
+## 2. Service API (Flask)
 
-Vous avez deux options pour déployer sur Railway :
+- **Root Directory** : `server`
+- **Build** : détecté automatiquement via `requirements.txt` (`pip install -r requirements.txt`)
+- **Start Command** : `flask --app wsgi init-db && gunicorn wsgi:app --bind 0.0.0.0:$PORT`
+  (`init-db` est idempotent : il ne crée que les tables manquantes)
 
-### Option 1 : Deux Services Séparés (Recommandé)
-- **Service Backend** : API Express.js
-- **Service Frontend** : Application React
+Variables d'environnement :
 
-### Option 2 : Service Monolithique
-- Un seul service qui sert à la fois le backend et le frontend
-
----
-
-## 📋 Prérequis
-
-1. Un compte Railway (https://railway.app)
-2. Un compte MongoDB Atlas (ou une base de données MongoDB)
-3. Un compte Stripe (pour les paiements)
-4. Git (pour pousser le code)
-
----
-
-## 🔧 Option 1 : Déploiement avec Deux Services Séparés
-
-### Étape 1 : Créer le Service Backend
-
-1. Connectez-vous à Railway et créez un nouveau projet
-2. Cliquez sur "New" → "GitHub Repo" et sélectionnez votre dépôt
-3. Ajoutez un nouveau service en cliquant sur "+ New"
-4. Sélectionnez "GitHub Repo" et choisissez votre dépôt
-5. **IMPORTANT** : Dans les paramètres du service, sélectionnez la **branche `backend`** (pas `main`)
-6. Dans les paramètres du service :
-   - **Branch** : `backend` ⚠️ **CRUCIAL** : Utilisez la branche backend, pas main !
-   - **Root Directory** : Laissez vide (ou `/`) - tout est à la racine dans la branche backend
-   - **Build Command** : Laissé vide (Nixpacks détectera automatiquement)
-   - **Start Command** : `npm start`
-
-**Important** : 
-- La branche `main` contient le dossier `server/` pour le développement local
-- La branche `backend` a tout à la racine pour faciliter le déploiement Railway
-- Railway doit utiliser la branche `backend` pour éviter les problèmes d'installation des dépendances
-- Le fichier `nixpacks.toml` à la racine force l'installation des dépendances avec `npm install`
-- Si les dépendances ne s'installent toujours pas, vérifiez les logs de build dans Railway
-
-### Étape 2 : Configurer les Variables d'Environnement du Backend
-
-Dans les paramètres du service backend, ajoutez ces variables d'environnement :
-
-```
-PORT=5000
-NODE_ENV=production
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/cinego?retryWrites=true&w=majority
-JWT_SECRET=votre_secret_jwt_super_securise
-STRIPE_SECRET_KEY=sk_test_votre_cle_stripe_secrete
+```env
+FLASK_ENV=production
+DATABASE_URL=${{MySQL.MYSQL_URL}}
+JWT_SECRET=<chaîne aléatoire d'au moins 32 caractères>
+FRONTEND_URL=https://<url-du-front>
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_CURRENCY=eur
+EMAIL_SERVICE=gmail
+EMAIL_USER=...
+EMAIL_PASSWORD=<mot de passe d'application>
 ```
 
-**Note** : Railway génère automatiquement une variable `PORT`, mais vous pouvez la définir manuellement.
+`DATABASE_URL` peut commencer par `mysql://` : l'API ajoute automatiquement le driver PyMySQL.
 
-### Étape 3 : Créer le Service Frontend
+Créer l'administrateur une fois déployé (shell Railway) :
 
-1. Dans le même projet Railway, ajoutez un nouveau service
-2. Sélectionnez "GitHub Repo" et choisissez votre dépôt
-3. **IMPORTANT** : Dans les paramètres du service, sélectionnez la **branche `frontend`** (pas `main`)
-4. Dans les paramètres du service :
-   - **Branch** : `frontend` ⚠️ **CRUCIAL** : Utilisez la branche frontend, pas main !
-   - **Root Directory** : Laissez vide (ou `/`) - tout est à la racine dans la branche frontend
-   - **Build Command** : `npm install && npm run build`
-   - **Start Command** : `npm run preview`
-
-**Important** : 
-- La branche `main` contient le dossier `client/` pour le développement local
-- La branche `frontend` a tout à la racine pour faciliter le déploiement Railway
-- Railway doit utiliser la branche `frontend` pour éviter d'inclure le dossier `server/`
-- Le dossier `server/` n'existe pas dans la branche `frontend`, donc il ne sera jamais inclus
-
-### Étape 4 : Configurer les Variables d'Environnement du Frontend
-
-Dans les paramètres du service frontend, ajoutez ces variables :
-
-```
-VITE_API_URL=https://cinego-production-12de.up.railway.app/api
-VITE_STRIPE_PUBLIC_KEY=pk_test_votre_cle_stripe_publique
+```bash
+flask --app wsgi create-admin admin@exemple.fr <mot-de-passe>
 ```
 
-**Important** : Remplacez `https://votre-backend.railway.app` par l'URL réelle de votre service backend (visible dans les paramètres du service backend sur Railway).
+> Les images uploadées sont stockées dans `server/uploads/public/`. Sur Railway, montez un
+> **volume** sur `/app/uploads` pour qu'elles survivent aux redéploiements.
 
-### Étape 5 : Configurer CORS sur le Backend
+## 3. Service Front (Vite)
 
-Le backend doit autoriser les requêtes depuis le frontend. Dans la branche `backend`, le fichier est `index.js` à la racine. Le CORS est déjà configuré, mais vous pouvez ajuster la variable d'environnement `FRONTEND_URL` si nécessaire.
+- **Root Directory** : `client`
+- **Build Command** : `npm install && npm run build`
+- **Start Command** : `npm run preview`
 
----
-
-## 🔧 Option 2 : Déploiement Monolithique
-
-### Étape 1 : Créer le Service
-
-1. Connectez-vous à Railway et créez un nouveau projet
-2. Cliquez sur "New" → "GitHub Repo" et sélectionnez votre dépôt
-3. Dans les paramètres du service :
-   - **Root Directory** : `/` (racine du projet)
-   - **Build Command** : `cd client && npm install && npm run build && cd ../server && npm install`
-   - **Start Command** : `cd server && npm start`
-
-**Note** : La commande de build installe d'abord les dépendances du frontend (`client`), construit l'application, puis installe les dépendances du serveur (`server`). Railway exécutera ces commandes automatiquement lors du déploiement.
-
-### Étape 2 : Configurer les Variables d'Environnement
-
-```
-PORT=5000
-NODE_ENV=production
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/cinego?retryWrites=true&w=majority
-JWT_SECRET=votre_secret_jwt_super_securise
-STRIPE_SECRET_KEY=sk_test_votre_cle_stripe_secrete
-VITE_API_URL=/api
-VITE_STRIPE_PUBLIC_KEY=pk_test_votre_cle_stripe_publique
+```env
+VITE_API_URL=https://<url-de-l-api>/api
+VITE_STRIPE_PUBLIC_KEY=pk_live_...
 ```
 
----
+## Variante : un seul service
 
-## 📝 Variables d'Environnement Détaillées
+Avec `FLASK_ENV=production`, Flask sert aussi le build React s'il trouve `client/build/`.
+Construisez le front (`cd client && npm run build`) puis lancez l'API depuis `server/`.
 
-### Backend
+## Migration depuis l'ancienne base MongoDB
 
-| Variable | Description | Exemple |
-|----------|-------------|---------|
-| `PORT` | Port d'écoute du serveur | `5000` |
-| `NODE_ENV` | Environnement d'exécution | `production` |
-| `MONGODB_URI` | URI de connexion MongoDB | `mongodb+srv://...` |
-| `JWT_SECRET` | Secret pour signer les tokens JWT | `votre_secret_securise` |
-| `STRIPE_SECRET_KEY` | Clé secrète Stripe | `sk_test_...` |
-| `FRONTEND_URL` | URL du frontend (pour CORS) | `https://...` |
+```bash
+cd server
+pip install pymongo
+python scripts/migrate_from_mongo.py "mongodb+srv://.../cinego"
+```
 
-### Frontend
-
-| Variable | Description | Exemple |
-|----------|-------------|---------|
-| `VITE_API_URL` | URL de l'API backend | `https://backend.railway.app/api` |
-| `VITE_STRIPE_PUBLIC_KEY` | Clé publique Stripe | `pk_test_...` |
-
----
-
-## 🔄 Déploiement Automatique
-
-Railway déploie automatiquement à chaque push sur la branche principale de votre dépôt GitHub.
-
-Pour activer le déploiement automatique :
-1. Allez dans les paramètres du service
-2. Activez "Auto Deploy" si ce n'est pas déjà fait
-3. Choisissez la branche à surveiller (généralement `main` ou `master`)
-
----
-
-## 🐛 Dépannage
-
-### Le backend ne démarre pas
-
-- Vérifiez que toutes les variables d'environnement sont définies
-- Vérifiez les logs dans Railway pour voir les erreurs
-- Assurez-vous que MongoDB est accessible depuis Railway
-- **Vérifiez que le Root Directory est bien défini sur `server`** dans les paramètres du service
-- Vérifiez que les dépendances du serveur sont bien installées (consultez les logs de build dans Railway)
-- Si les dépendances ne s'installent pas, vérifiez que le fichier `server/nixpacks.toml` est présent dans votre dépôt
-- Si vous modifiez `server/package.json`, assurez-vous de pousser les changements sur GitHub pour que Railway réinstalle les dépendances
-
-### Les dépendances ne s'installent pas / "express not found"
-
-- Vérifiez que le **Root Directory** est défini sur `server` (sans slash final)
-- Vérifiez que le fichier `server/package.json` existe et contient les dépendances (express, mongoose, etc.)
-- Vérifiez que le fichier `server/nixpacks.toml` est présent dans votre dépôt (il force l'installation)
-- Dans les paramètres Railway, vérifiez que le **Builder** est défini sur **Nixpacks** (pas Dockerfile)
-- Consultez les logs de build dans Railway pour voir si `npm install` est exécuté
-- Si `npm install` n'apparaît pas dans les logs, le fichier `nixpacks.toml` n'est peut-être pas détecté
-- Essayez de redéployer le service après avoir vérifié la configuration
-- Si le problème persiste, dans les paramètres Railway, définissez manuellement **Build Command** : `npm install`
-
-### Le frontend ne peut pas se connecter au backend
-
-- Vérifiez que `VITE_API_URL` pointe vers la bonne URL
-- Vérifiez que CORS est correctement configuré sur le backend
-- Vérifiez que le backend est bien démarré et accessible
-
-### Les images ne s'affichent pas
-
-- Vérifiez que le dossier `server/uploads` est bien créé
-- Vérifiez que les fichiers sont bien servis via `/uploads`
-
----
-
-## 📚 Ressources
-
-- [Documentation Railway](https://docs.railway.app)
-- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-- [Stripe Documentation](https://stripe.com/docs)
-
----
-
-## ✅ Checklist de Déploiement
-
-- [ ] Compte Railway créé
-- [ ] Projet Railway créé
-- [ ] Service(s) créé(s)
-- [ ] Build Command configuré avec `npm install` pour le serveur
-- [ ] Variables d'environnement configurées
-- [ ] MongoDB Atlas configuré et accessible
-- [ ] Clés Stripe configurées
-- [ ] CORS configuré correctement
-- [ ] Dépendances du serveur installées (automatique via Railway)
-- [ ] Déploiement réussi
-- [ ] Application testée en production
-
----
-
-**Note** : Après le déploiement, Railway vous fournira des URLs publiques pour vos services. Utilisez ces URLs pour configurer les variables d'environnement et tester votre application.
-
+Les mots de passe sont conservés (même format bcrypt).

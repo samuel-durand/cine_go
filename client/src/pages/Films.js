@@ -1,236 +1,126 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
-import {
-  Container,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  CardMedia,
-  CardActionArea,
-  Box,
-  CircularProgress,
-  TextField,
-  InputAdornment
-} from '@mui/material';
-import { Movie, Search, AccessTime } from '@mui/icons-material';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Box, Chip, Container, Grid, InputAdornment, Tab, Tabs, TextField, Typography } from '@mui/material';
+import { Search, MovieFilter } from '@mui/icons-material';
+import api from '../utils/axiosConfig';
+import { colors } from '../theme';
+import { capitalize, filmsAuCinema, filmsPlusAttendus, filmsProchainement } from '../utils/format';
+import Loader from '../components/common/Loader';
+import EmptyState from '../components/common/EmptyState';
+import PosterCard from '../components/films/PosterCard';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const TABS = [
+  { value: 'affiche', label: 'Au cinéma', select: filmsAuCinema, title: 'Films actuellement au cinéma' },
+  { value: 'attendus', label: 'Les plus attendus', select: filmsPlusAttendus, title: 'Les films les plus attendus' },
+  { value: 'prochainement', label: 'Prochainement', select: filmsProchainement, title: 'Prochaines sorties au cinéma' },
+];
 
 const Films = () => {
   const [films, setFilms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [genre, setGenre] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const current = TABS.find((t) => t.value === searchParams.get('tab')) || TABS[0];
+  const tab = current.value;
 
   useEffect(() => {
-    fetchFilms();
+    api.get('/films')
+      .then((res) => setFilms(res.data))
+      .catch((error) => console.error('Erreur lors du chargement des films:', error))
+      .finally(() => setLoading(false));
   }, []);
 
-  const fetchFilms = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/films`);
-      setFilms(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Erreur lors du chargement des films:', error);
-      setLoading(false);
-    }
-  };
+  const tabFilms = useMemo(() => current.select(films), [films, current]);
 
-  const filteredFilms = films.filter(film =>
-    film.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (film.genre?.nom || film.genre || '').toLowerCase().includes(searchTerm.toLowerCase())
+  const genres = useMemo(
+    () => [...new Set(tabFilms.map((f) => f.genre?.nom).filter(Boolean))].sort(),
+    [tabFilms],
   );
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  const filteredFilms = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return tabFilms.filter((film) => {
+      if (genre && film.genre?.nom !== genre) return false;
+      if (!q) return true;
+      return [film.titre, film.genre?.nom, film.realisateur, ...(film.acteurs || [])]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(q));
+    });
+  }, [tabFilms, genre, searchTerm]);
+
+  const changeTab = (_, value) => {
+    setGenre('');
+    setSearchParams(value === 'affiche' ? {} : { tab: value });
+  };
+
+  if (loading) return <Loader />;
 
   return (
-    <Box sx={{ minHeight: '100vh', py: 8 }}>
-      <Container maxWidth="lg">
-        <Typography 
-          variant="h2" 
-          component="h1" 
-          sx={{ 
-            mb: 2, 
-            fontWeight: 700,
-            letterSpacing: '-0.01em',
-          }}
-        >
-          Tous les <Box component="span" sx={{ color: '#FFD700' }}>films</Box>
-        </Typography>
-        <Typography
-          variant="body1"
-          sx={{
-            color: 'rgba(255, 255, 255, 0.55)',
-            marginBottom: 4,
-          }}
-        >
-          Découvrez notre collection complète de films
-        </Typography>
-
-      <TextField
-        fullWidth
-        placeholder="Rechercher un film..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        sx={{
-          mb: 6,
-          '& .MuiOutlinedInput-root': {
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            backdropFilter: 'blur(10px)',
-            color: '#FFFFFF',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            '&:hover fieldset': {
-              borderColor: 'rgba(255, 215, 0, 0.5)',
-            },
-            '&.Mui-focused fieldset': {
-              borderColor: 'rgba(255, 215, 0, 0.7)',
-            },
-            '& fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.1)',
-            },
-          },
-        }}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Search sx={{ color: '#FFD700' }} />
-            </InputAdornment>
-          ),
-        }}
-      />
-
-      <Box className="mt-4">
-        <Grid container spacing={4}>
-        {filteredFilms.length === 0 ? (
-          <Box className="w-full text-center py-12">
-            <Typography variant="h6" color="textSecondary">
-              Aucun film trouvé
-            </Typography>
-          </Box>
-        ) : (
-          filteredFilms.map((film) => (
-            <Grid item xs={12} sm={6} md={4} key={film._id}>
-              <Card
-                sx={{
-                  height: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    borderColor: 'rgba(255, 215, 0, 0.5)',
-                    boxShadow: '0 12px 40px rgba(255, 215, 0, 0.3)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  },
-                }}
-              >
-                <CardActionArea component={Link} to={`/films/${film._id}`}>
-                  <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-                    {film.image ? (
-                      <CardMedia
-                        component="img"
-                        height="300"
-                        image={film.image}
-                        alt={film.titre}
-                        sx={{
-                          objectFit: 'cover',
-                          transition: 'transform 0.4s ease',
-                          '.MuiCardActionArea-root:hover &': {
-                            transform: 'scale(1.05)',
-                          },
-                        }}
-                      />
-                    ) : (
-                      <Box
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        sx={{ backgroundColor: '#1c1d24', height: 300 }}
-                      >
-                        <Movie sx={{ fontSize: 80, color: '#3a3b45' }} />
-                      </Box>
-                    )}
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        inset: 0,
-                        background: 'linear-gradient(180deg, transparent 60%, rgba(10, 10, 14, 0.9) 100%)',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 12,
-                        left: 12,
-                        px: 1.5,
-                        py: 0.5,
-                        borderRadius: '8px',
-                        backgroundColor: 'rgba(10, 10, 14, 0.75)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        color: '#FFD700',
-                      }}
-                    >
-                      {film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : 'N/A'}
-                    </Box>
-                  </Box>
-                  <CardContent sx={{ padding: 3, backgroundColor: 'transparent' }}>
-                    <Typography
-                      variant="h6"
-                      component="h2"
-                      sx={{
-                        fontWeight: 700,
-                        marginBottom: 0.5,
-                        color: '#FFFFFF',
-                      }}
-                    >
-                      {film.titre}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, marginBottom: 1.5 }}>
-                      <AccessTime sx={{ fontSize: 15, color: 'rgba(255, 255, 255, 0.45)' }} />
-                      <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.55)' }}>
-                        {film.duree} min
-                      </Typography>
-                    </Box>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: 'rgba(255, 255, 255, 0.55)',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {film.description}
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))
-        )}
-        </Grid>
+    <Box>
+      <Box sx={{ bgcolor: colors.bgDeep, borderBottom: `1px solid ${colors.border}` }}>
+        <Container maxWidth="xl" sx={{ px: { xs: 2, md: 10 }, pt: { xs: 4, md: 6 } }}>
+          <Typography variant="h1" sx={{ mb: 2, fontSize: { xs: '2.5rem', md: '3.5rem' } }}>
+            {current.title}
+          </Typography>
+          <Tabs value={tab} onChange={changeTab} textColor="inherit" TabIndicatorProps={{ sx: { height: 3, borderRadius: 3 } }}>
+            {TABS.map((t) => (
+              <Tab key={t.value} value={t.value} label={t.label} sx={{ px: 0, mr: 4, minWidth: 0, '&.Mui-selected': { color: '#fff' } }} />
+            ))}
+          </Tabs>
+        </Container>
       </Box>
+
+      <Container maxWidth="xl" sx={{ px: { xs: 2, md: 10 }, py: 4 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: { md: 'center' }, mb: 4 }}>
+          <TextField
+            placeholder="Rechercher un film, un acteur…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            size="small"
+            sx={{ width: { xs: '100%', md: 340 } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: 'primary.main' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Box className="no-scrollbar" sx={{ display: 'flex', gap: 1, overflowX: 'auto' }}>
+            <Chip label="Tous" onClick={() => setGenre('')} color={genre ? 'default' : 'primary'} variant={genre ? 'outlined' : 'filled'} />
+            {genres.map((g) => (
+              <Chip
+                key={g}
+                label={capitalize(g)}
+                onClick={() => setGenre(g === genre ? '' : g)}
+                color={g === genre ? 'primary' : 'default'}
+                variant={g === genre ? 'filled' : 'outlined'}
+              />
+            ))}
+          </Box>
+        </Box>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {filteredFilms.length} film{filteredFilms.length > 1 ? 's' : ''}
+        </Typography>
+
+        {filteredFilms.length === 0 ? (
+          <EmptyState icon={MovieFilter} title="Aucun film trouvé">
+            Essayez un autre titre ou un autre genre.
+          </EmptyState>
+        ) : (
+          <Grid container spacing={{ xs: 2, md: 3 }}>
+            {filteredFilms.map((film) => (
+              <Grid item xs={6} sm={4} md={3} lg={2.4} key={film._id}>
+                <PosterCard film={film} showEnvies={tab === 'attendus'} />
+              </Grid>
+            ))}
+          </Grid>
+        )}
       </Container>
     </Box>
   );
 };
 
 export default Films;
-

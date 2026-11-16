@@ -1,19 +1,18 @@
 {
   "name": "cine-go",
-  "version": "1.0.0",
-  "description": "Système de réservation de places de cinéma",
-  "main": "server/index.js",
+  "version": "2.0.0",
+  "description": "Système de réservation de places de cinéma (API Flask + MySQL, front React)",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && npm run dev",
+    "server": "cd server && python wsgi.py",
     "client": "cd client && npm start",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+    "test": "cd server && python -m pytest -q",
+    "install-all": "npm install && cd server && pip install -r requirements.txt && cd ../client && npm install"
   },
-  "keywords": ["cinema", "reservation", "react", "express"],
+  "keywords": ["cinema", "reservation", "react", "flask", "mysql"],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
 }
-

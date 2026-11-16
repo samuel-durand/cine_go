@@ -1,452 +1,176 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
-import {
-  Container,
-  Typography,
-  Box,
-  CircularProgress,
-  Card,
-  CardContent,
-  CardMedia,
-  CardActionArea,
-  Grid,
-  Chip,
-  Alert,
-  TextField,
-  Button,
-  MenuItem
-} from '@mui/material';
-import { LocationOn, Phone, Email, AccessTime, Room, Euro, Movie, CalendarToday } from '@mui/icons-material';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { Alert, Box, Chip, Container, Grid, Typography } from '@mui/material';
+import { Email, EventBusy, LocationOn, Movie, Phone } from '@mui/icons-material';
+import api from '../utils/axiosConfig';
+import { colors } from '../theme';
+import { formatDayLong, formatDuration, genreName, imageUrl, SALLE_LABELS, toISODate } from '../utils/format';
+import Loader from '../components/common/Loader';
+import EmptyState from '../components/common/EmptyState';
+import DayStrip from '../components/seances/DayStrip';
+import ShowtimeButton from '../components/seances/ShowtimeButton';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Regroupe les séances du jour par film
+const groupByFilm = (seances) => {
+  const groups = new Map();
+  seances.forEach((s) => {
+    if (!s.film) return;
+    if (!groups.has(s.film._id)) groups.set(s.film._id, { film: s.film, seances: [] });
+    groups.get(s.film._id).seances.push(s);
+  });
+  return [...groups.values()].sort((a, b) => a.film.titre.localeCompare(b.film.titre));
+};
 
 const CinemaDetail = () => {
   const { id } = useParams();
   const [cinema, setCinema] = useState(null);
-  const [salles, setSalles] = useState([]);
-  const [seances, setSeances] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedFilm, setSelectedFilm] = useState('');
+  const [availableDates, setAvailableDates] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(toISODate());
+  const [seances, setSeances] = useState([]);
+  const [seancesLoading, setSeancesLoading] = useState(false);
 
-  const fetchCinema = useCallback(async () => {
-    try {
-      const response = await axios.get(`${API_URL}/cinemas/${id}`);
-      setCinema(response.data);
-      setSalles(response.data.salles || []);
-      setLoading(false);
-    } catch (error) {
-      console.error('Erreur lors du chargement du cinéma:', error);
-      setLoading(false);
-    }
+  useEffect(() => {
+    api.get(`/cinemas/${id}`)
+      .then((res) => setCinema(res.data))
+      .catch(() => setCinema(null))
+      .finally(() => setLoading(false));
+    api.get('/seances/dates', { params: { cinemaId: id } })
+      .then(({ data }) => {
+        setAvailableDates(data);
+        if (data.length && !data.includes(toISODate())) setSelectedDate(data[0]);
+      })
+      .catch(() => setAvailableDates(null));
   }, [id]);
 
-  const fetchSeances = useCallback(async () => {
-    try {
-      const params = { date: selectedDate };
-      if (selectedFilm) {
-        params.filmId = selectedFilm;
-      }
-      const response = await axios.get(`${API_URL}/seances`, { params });
-      
-      // Filtrer les séances pour ce cinéma uniquement
-      const cinemaSeances = response.data.filter(
-        seance => seance.salle?.cinema?._id === id
-      );
-      setSeances(cinemaSeances);
-    } catch (error) {
-      console.error('Erreur lors du chargement des séances:', error);
-    }
-  }, [id, selectedDate, selectedFilm]);
-
   useEffect(() => {
-    fetchCinema();
-  }, [fetchCinema]);
+    setSeancesLoading(true);
+    api.get('/seances', { params: { cinemaId: id, date: selectedDate } })
+      .then((res) => setSeances(res.data))
+      .catch((error) => {
+        console.error('Erreur lors du chargement des séances:', error);
+        setSeances([]);
+      })
+      .finally(() => setSeancesLoading(false));
+  }, [id, selectedDate]);
 
-  useEffect(() => {
-    if (cinema) {
-      fetchSeances();
-    }
-  }, [fetchSeances, cinema]);
+  const films = useMemo(() => groupByFilm(seances), [seances]);
 
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '60vh',
-          backgroundColor: '#121212',
-        }}
-      >
-        <CircularProgress sx={{ color: '#FFD700' }} />
-      </Box>
-    );
-  }
-
+  if (loading) return <Loader />;
   if (!cinema) {
     return (
-      <Box sx={{ backgroundColor: '#121212', minHeight: '100vh', py: 8 }}>
-        <Container maxWidth="lg">
-          <Alert
-            severity="error"
-            sx={{
-              backgroundColor: '#1a1a1a',
-              color: '#FFFFFF',
-              border: '1px solid rgba(255, 0, 0, 0.3)',
-            }}
-          >
-            Cinéma non trouvé
-          </Alert>
-        </Container>
-      </Box>
+      <Container maxWidth="lg" sx={{ py: 8 }}>
+        <Alert severity="error">Cinéma non trouvé</Alert>
+      </Container>
     );
   }
 
-  // Extraire les films uniques depuis les séances
-  const filmsMap = new Map();
-  seances.forEach(seance => {
-    const film = seance.film;
-    if (film && !filmsMap.has(film._id)) {
-      filmsMap.set(film._id, film);
-    }
-  });
-  const availableFilms = Array.from(filmsMap.values());
-
-  // Grouper les séances par film, puis par salle
-  const groupedSeances = seances.reduce((acc, seance) => {
-    const film = seance.film;
-    const salle = seance.salle;
-    
-    if (!film || !salle) return acc;
-    
-    const filmId = film._id;
-    const salleId = salle._id;
-    
-    if (!acc[filmId]) {
-      acc[filmId] = {
-        film: film,
-        salles: {}
-      };
-    }
-    
-    if (!acc[filmId].salles[salleId]) {
-      acc[filmId].salles[salleId] = {
-        salle: salle,
-        seances: []
-      };
-    }
-    
-    acc[filmId].salles[salleId].seances.push(seance);
-    return acc;
-  }, {});
+  const cover = imageUrl(cinema.image);
+  const formats = [...new Set((cinema.salles || []).map((s) => s.type))];
 
   return (
-    <Box sx={{ backgroundColor: '#121212', minHeight: '100vh', py: 8 }}>
-      <Container maxWidth="lg">
-        {/* Informations du cinéma */}
-        <Card
-          sx={{
-            mb: 4,
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '16px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          <CardContent sx={{ backgroundColor: 'transparent', p: 4 }}>
-            <Grid container spacing={4}>
-              {cinema.image && (
-                <Grid item xs={12} md={4}>
-                  <img
-                    src={cinema.image.startsWith('/') ? `${API_URL}${cinema.image}` : cinema.image}
-                    alt={cinema.nom}
-                    style={{
-                      width: '100%',
-                      borderRadius: '12px',
-                      maxHeight: '300px',
-                      objectFit: 'cover',
-                    }}
-                  />
-                </Grid>
-              )}
-              <Grid item xs={12} md={cinema.image ? 8 : 12}>
-                <Typography variant="h3" component="h1" sx={{ mb: 2, color: '#FFD700', fontWeight: 'bold' }}>
-                  <LocationOn sx={{ mr: 1, verticalAlign: 'middle' }} />
-                  {cinema.nom}
-                </Typography>
-                
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body1" sx={{ color: '#CCCCCC', mb: 1 }}>
-                    {cinema.adresse}
-                  </Typography>
-                  <Typography variant="body1" sx={{ color: '#CCCCCC' }}>
-                    {cinema.codePostal} {cinema.ville}
-                  </Typography>
-                </Box>
-
-                {cinema.telephone && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Phone sx={{ fontSize: 20, color: '#FFD700', mr: 1 }} />
-                    <Typography variant="body1" sx={{ color: '#CCCCCC' }}>
-                      {cinema.telephone}
-                    </Typography>
-                  </Box>
-                )}
-
-                {cinema.email && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Email sx={{ fontSize: 20, color: '#FFD700', mr: 1 }} />
-                    <Typography variant="body1" sx={{ color: '#CCCCCC' }}>
-                      {cinema.email}
-                    </Typography>
-                  </Box>
-                )}
-
-                {cinema.description && (
-                  <Typography variant="body1" sx={{ color: '#CCCCCC', mt: 2 }}>
-                    {cinema.description}
-                  </Typography>
-                )}
-
-                {salles.length > 0 && (
-                  <Box sx={{ mt: 3 }}>
-                    <Typography variant="body2" sx={{ color: '#FFD700', mb: 1 }}>
-                      {salles.length} salle{salles.length > 1 ? 's' : ''} disponible{salles.length > 1 ? 's' : ''}
-                    </Typography>
-                  </Box>
-                )}
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-
-        {/* Filtres et séances */}
-        <Box sx={{ mb: 4 }}>
-          <Typography
-            variant="h5"
-            sx={{
-              mb: 3,
-              fontWeight: 700,
-              color: '#FFD700',
-            }}
-          >
-            Films à l'affiche
-          </Typography>
-
-          <Box sx={{ mb: 4, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <TextField
-              type="date"
-              label="Sélectionner une date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              sx={{
-                minWidth: 200,
-                '& .MuiOutlinedInput-root': {
-                  color: '#FFFFFF',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  backdropFilter: 'blur(10px)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  '& fieldset': {
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(255, 215, 0, 0.5)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'rgba(255, 215, 0, 0.7)',
-                  },
-                },
-                '& .MuiInputLabel-root': {
-                  color: '#CCCCCC',
-                },
-                '& input[type="date"]::-webkit-calendar-picker-indicator': {
-                  filter: 'invert(1)',
-                  cursor: 'pointer',
-                },
-              }}
-            />
-            {availableFilms.length > 0 && (
-              <TextField
-                select
-                label="Filtrer par film"
-                value={selectedFilm}
-                onChange={(e) => setSelectedFilm(e.target.value)}
-                sx={{
-                  minWidth: 250,
-                  '& .MuiOutlinedInput-root': {
-                    color: '#FFFFFF',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    '& fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.1)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(255, 215, 0, 0.5)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'rgba(255, 215, 0, 0.7)',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: '#CCCCCC',
-                  },
-                }}
-              >
-                <MenuItem value="">
-                  <em>Tous les films ({availableFilms.length})</em>
-                </MenuItem>
-                {availableFilms.map((film) => (
-                  <MenuItem key={film._id} value={film._id}>
-                    {film.titre}
-                  </MenuItem>
-                ))}
-              </TextField>
+    <Box>
+      {/* En-tête du cinéma */}
+      <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: colors.bgDeep, borderBottom: `1px solid ${colors.border}` }}>
+        {cover && (
+          <Box sx={{ position: 'absolute', inset: 0, backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.35 }} />
+        )}
+        <Box sx={{ position: 'absolute', inset: 0, background: `linear-gradient(0deg, ${colors.bg} 0%, rgba(15,16,20,0.5) 100%)` }} />
+        <Container maxWidth="xl" sx={{ position: 'relative', px: { xs: 2, md: 4 }, pt: { xs: 6, md: 10 }, pb: { xs: 4, md: 6 } }}>
+          <Typography variant="overline" sx={{ color: 'primary.main' }}>{cinema.ville}</Typography>
+          <Typography variant="h1" sx={{ fontSize: { xs: '2rem', md: '3rem' }, mb: 2 }}>{cinema.nom}</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 1, md: 3 }, color: 'text.secondary' }}>
+            <Typography sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <LocationOn fontSize="small" sx={{ color: 'primary.main' }} />
+              {cinema.adresse}, {cinema.codePostal} {cinema.ville}
+            </Typography>
+            {cinema.telephone && (
+              <Typography sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Phone fontSize="small" sx={{ color: 'primary.main' }} />
+                {cinema.telephone}
+              </Typography>
+            )}
+            {cinema.email && (
+              <Typography sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Email fontSize="small" sx={{ color: 'primary.main' }} />
+                {cinema.email}
+              </Typography>
             )}
           </Box>
+          {(formats.length > 0 || cinema.salles?.length > 0) && (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2.5 }}>
+              <Chip label={`${cinema.salles.length} salle${cinema.salles.length > 1 ? 's' : ''}`} variant="outlined" />
+              {formats.filter((t) => t !== 'classic').map((t) => (
+                <Chip key={t} label={SALLE_LABELS[t] || t} color="primary" />
+              ))}
+            </Box>
+          )}
+          {cinema.description && (
+            <Typography sx={{ color: colors.textMuted, mt: 2.5, maxWidth: 760 }}>{cinema.description}</Typography>
+          )}
+        </Container>
+      </Box>
 
-          {Object.keys(groupedSeances).length === 0 ? (
-            <Alert severity="info">
-              {selectedFilm 
-                ? 'Aucune séance disponible pour ce film à cette date'
-                : 'Aucune séance disponible pour cette date'}
-            </Alert>
-          ) : (
-            Object.entries(groupedSeances).map(([filmId, { film, salles: sallesMap }]) => (
-              <Card
-                key={filmId}
-                sx={{
-                  mb: 4,
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '16px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                  '&:hover': {
-                    borderColor: 'rgba(255, 215, 0, 0.3)',
-                  },
-                }}
-              >
-                <CardContent sx={{ backgroundColor: 'transparent', p: 3 }}>
-                  <Grid container spacing={3} sx={{ mb: 3 }}>
-                    <Grid item xs={12} sm={3}>
+      <Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 }, pt: 5 }}>
+        <Typography variant="h3" component="h2" sx={{ mb: 3, fontSize: { xs: '1.5rem', md: '1.85rem' } }}>
+          Films et séances
+        </Typography>
+        <DayStrip value={selectedDate} onChange={setSelectedDate} availableDates={availableDates} />
+        <Typography color="text.secondary" sx={{ mt: 3, mb: 2 }}>
+          {formatDayLong(selectedDate)}
+        </Typography>
+
+        {seancesLoading ? (
+          <Loader minHeight={160} />
+        ) : films.length === 0 ? (
+          <EmptyState icon={EventBusy} title="Aucune séance ce jour-là">
+            Choisissez une autre date dans le calendrier ci-dessus.
+          </EmptyState>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {films.map(({ film, seances: list }) => (
+              <Box key={film._id} sx={{ p: { xs: 2, md: 3 }, borderRadius: 3, bgcolor: colors.paper, border: `1px solid ${colors.border}` }}>
+                <Grid container spacing={{ xs: 2, md: 3 }}>
+                  <Grid item xs={4} sm={3} md={2}>
+                    <Box
+                      component={Link}
+                      to={`/films/${film._id}`}
+                      sx={{ display: 'block', aspectRatio: '2 / 3', borderRadius: '8px', overflow: 'hidden', bgcolor: colors.paperHigh }}
+                    >
                       {film.image ? (
-                        <img
-                          src={film.image.startsWith('/') ? `${API_URL}${film.image}` : film.image}
-                          alt={film.titre}
-                          style={{
-                            width: '100%',
-                            borderRadius: '12px',
-                            maxHeight: '200px',
-                            objectFit: 'cover',
-                          }}
-                        />
+                        <Box component="img" src={imageUrl(film.image)} alt={film.titre} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: '200px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            borderRadius: '12px',
-                          }}
-                        >
-                          <Movie sx={{ fontSize: 60, color: '#666666' }} />
+                        <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Movie sx={{ fontSize: 40, color: '#3a3b45' }} />
                         </Box>
                       )}
-                    </Grid>
-                    <Grid item xs={12} sm={9}>
-                      <Typography variant="h5" sx={{ mb: 1, color: '#FFFFFF', fontWeight: 'bold' }}>
-                        {film.titre}
-                      </Typography>
-                      <Box sx={{ mb: 2 }}>
-                        <Chip label={film.genre?.nom ? film.genre.nom.charAt(0).toUpperCase() + film.genre.nom.slice(1) : film.genre || 'N/A'} size="small" sx={{ mr: 1 }} />
-                        <Chip label={`${film.duree} min`} size="small" />
-                      </Box>
-                      <Button
-                        component={Link}
-                        to={`/films/${film._id}`}
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                          borderColor: 'rgba(255, 215, 0, 0.3)',
-                          color: '#FFD700',
-                          '&:hover': {
-                            borderColor: '#FFD700',
-                            backgroundColor: 'rgba(255, 215, 0, 0.1)',
-                          },
-                        }}
-                      >
-                        Voir les détails
-                      </Button>
-                    </Grid>
-                  </Grid>
-
-                  {Object.entries(sallesMap).map(([salleId, { salle, seances: seancesSalle }]) => (
-                    <Box key={salleId} sx={{ mb: 3, pl: 2, borderLeft: '2px solid rgba(255, 215, 0, 0.3)' }}>
-                      <Typography variant="h6" sx={{ mb: 2, color: '#FFFFFF' }}>
-                        <Room sx={{ mr: 1, verticalAlign: 'middle' }} />
-                        Salle {salle?.nom || 'Inconnue'}
-                        {salle?.type && (
-                          <Chip
-                            label={salle.type.toUpperCase()}
-                            size="small"
-                            sx={{ ml: 2, backgroundColor: 'rgba(255, 215, 0, 0.2)', color: '#FFD700' }}
-                          />
-                        )}
-                      </Typography>
-                      <Box className="flex flex-wrap gap-2">
-                        {seancesSalle.map((seance) => (
-                          <Button
-                            key={seance._id}
-                            variant="outlined"
-                            component={Link}
-                            to={`/reservation/${seance._id}`}
-                            sx={{
-                              mb: 1,
-                              borderColor: seance.placesDisponibles === 0 
-                                ? 'rgba(255, 0, 0, 0.3)' 
-                                : 'rgba(255, 215, 0, 0.3)',
-                              color: seance.placesDisponibles === 0 ? '#FF6B6B' : '#FFD700',
-                              '&:hover': {
-                                borderColor: seance.placesDisponibles === 0 
-                                  ? 'rgba(255, 0, 0, 0.5)' 
-                                  : 'rgba(255, 215, 0, 0.5)',
-                                backgroundColor: seance.placesDisponibles === 0 
-                                  ? 'rgba(255, 0, 0, 0.1)' 
-                                  : 'rgba(255, 215, 0, 0.1)',
-                              },
-                            }}
-                            disabled={seance.placesDisponibles === 0}
-                          >
-                            <AccessTime sx={{ mr: 0.5, fontSize: 18 }} />
-                            {seance.heure}
-                            <Euro sx={{ ml: 0.5, mr: 0.5, fontSize: 18 }} />
-                            {seance.prix}€
-                            {seance.placesDisponibles === 0 && ' (Complet)'}
-                          </Button>
-                        ))}
-                      </Box>
                     </Box>
-                  ))}
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </Box>
+                  </Grid>
+                  <Grid item xs={8} sm={9} md={10}>
+                    <Typography
+                      component={Link}
+                      to={`/films/${film._id}`}
+                      sx={{ fontWeight: 800, fontSize: { xs: '1.1rem', md: '1.35rem' }, color: '#fff', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+                    >
+                      {film.titre}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {[genreName(film), formatDuration(film.duree)].filter(Boolean).join(' · ')}
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.25, pt: 1 }}>
+                      {list.map((s) => (
+                        <ShowtimeButton key={s._id} seance={s} duree={film.duree} />
+                      ))}
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Box>
+            ))}
+          </Box>
+        )}
       </Container>
     </Box>
   );
 };
 
 export default CinemaDetail;
-

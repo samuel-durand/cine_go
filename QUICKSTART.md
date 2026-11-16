@@ -1,98 +1,71 @@
-# Guide de démarrage rapide
+# Démarrage rapide
 
-## Installation
+## Prérequis
 
-1. **Installer toutes les dépendances**
-```bash
-npm run install-all
+- Python 3.11+
+- Node.js 18+
+- Un serveur MySQL 8 (local, Docker ou hébergé)
+
+## 1. Base MySQL
+
+```sql
+CREATE DATABASE cinego CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-2. **Configurer MongoDB**
-   - Assurez-vous que MongoDB est installé et en cours d'exécution
-   - Ou utilisez MongoDB Atlas (gratuit) et mettez l'URI dans `.env`
+Avec Docker :
 
-3. **Configurer les variables d'environnement**
+```bash
+docker run -d --name cinego-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=cinego mysql:8
+```
 
-Créez `server/.env` :
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/cinego
-JWT_SECRET=votre_secret_jwt_tres_securise_changez_moi
-JWT_EXPIRE=7d
-STRIPE_SECRET_KEY=sk_test_votre_cle
-STRIPE_CURRENCY=eur
+## 2. API Flask
+
+```bash
+cd server
+python -m venv .venv
+.venv\Scripts\activate            # Linux/Mac : source .venv/bin/activate
+pip install -r requirements.txt
+copy .env.example .env            # Linux/Mac : cp .env.example .env
+```
+
+Renseignez au minimum dans `server/.env` : `MYSQL_*` (ou `DATABASE_URL`), `JWT_SECRET`, `STRIPE_SECRET_KEY`.
+
+```bash
+flask --app wsgi init-db                              # crée les tables
+flask --app wsgi seed-genres                          # genres par défaut
+flask --app wsgi seed-salles                          # un cinéma + 5 salles avec plans
+flask --app wsgi create-admin admin@cinego.com admin123
+flask --app wsgi import-pathe                         # films au cinéma + 30 plus attendus (pathe.fr)
+flask --app wsgi seed-seances --days 7                # séances pour la semaine
+python wsgi.py                                        # API sur http://localhost:5000
+```
+
+## 3. Front React
+
+```bash
+cd client
+npm install
 ```
 
 Créez `client/.env` :
+
 ```env
-REACT_APP_API_URL=http://localhost:5000/api
-REACT_APP_STRIPE_PUBLIC_KEY=pk_test_votre_cle
+VITE_API_URL=http://localhost:5000/api
+VITE_STRIPE_PUBLIC_KEY=pk_test_...
 ```
 
-4. **Créer un utilisateur administrateur** (optionnel)
 ```bash
-cd server
-node scripts/createAdmin.js admin@example.com motdepasse123
+npm run dev                                           # http://localhost:3000
 ```
 
-5. **Initialiser les salles par défaut** (recommandé)
+Ou depuis la racine, les deux en même temps : `npm run dev`.
+
+## Administration
+
+Connectez-vous avec le compte admin puis ouvrez **Admin** dans le menu.
+
+## Tests
+
 ```bash
-cd server
-node scripts/initSalles.js
+cd server && python -m pytest -q
 ```
-
-6. **Démarrer l'application**
-```bash
-# Depuis la racine du projet
-npm run dev
-```
-
-L'application sera accessible sur :
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-
-## Première utilisation
-
-1. **Créer un compte utilisateur** via l'interface d'inscription
-2. **Se connecter** avec vos identifiants
-3. **Pour devenir admin**, modifiez manuellement dans MongoDB :
-   ```javascript
-   db.users.updateOne(
-     { email: "votre@email.com" },
-     { $set: { role: "admin" } }
-   )
-   ```
-
-## Structure des données
-
-### Films
-- Titre, description, durée, genre
-- Réalisateur, acteurs
-- Image (URL), date de sortie, note, prix
-
-### Séances
-- Film associé
-- Date et heure
-- Salle, nombre de places
-- Prix
-
-### Salles
-- Nom, type (classic, vip, premium, imax, 4dx)
-- Capacité, description, équipements
-- Statut actif/inactif
-
-### Réservations
-- Utilisateur, séance
-- Nombre de places, prix total
-- Statut (en_attente, confirmee, annulee)
-- Paiement (en_attente, paye, rembourse)
-- Les séances bloquées ne peuvent pas être réservées
-
-## Notes
-
-- Les images de films doivent être des URLs valides
-- Les paiements sont traités via Stripe (Payment Intent + Elements)
-- Les places disponibles sont automatiquement mises à jour lors des réservations
-- Les séances peuvent être bloquées depuis le planning admin (ex: réservation complète, maintenance)
-- Les types de salles permettent de différencier les expériences (Classic, VIP, Premium, IMAX, 4DX)
-

@@ -1,200 +1,136 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
-import {
-  Container,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  CardActionArea,
-  Box,
-  CircularProgress,
-  Chip
-} from '@mui/material';
-import { LocationOn, Phone, Email, Movie } from '@mui/icons-material';
-
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Box, Container, Grid, InputAdornment, TextField, Typography } from '@mui/material';
+import { ChevronRight, LocationOn, Search, TheaterComedy } from '@mui/icons-material';
+import api from '../utils/axiosConfig';
+import { colors } from '../theme';
+import { imageUrl } from '../utils/format';
+import Loader from '../components/common/Loader';
+import EmptyState from '../components/common/EmptyState';
 
 const Cinemas = () => {
   const [cinemas, setCinemas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const [query, setQuery] = useState(searchParams.get('ville') || '');
 
   useEffect(() => {
-    fetchCinemas();
+    api.get('/cinemas')
+      .then((res) => setCinemas(res.data))
+      .catch((error) => console.error('Erreur lors du chargement des cinémas:', error))
+      .finally(() => setLoading(false));
   }, []);
 
-  const fetchCinemas = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/cinemas`);
-      setCinemas(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Erreur lors du chargement des cinémas:', error);
-      setLoading(false);
-    }
-  };
+  // Cinémas filtrés puis regroupés par ville
+  const byCity = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const groups = new Map();
+    cinemas
+      .filter((c) => !q || [c.nom, c.ville, c.codePostal].some((v) => (v || '').toLowerCase().includes(q)))
+      .forEach((c) => {
+        if (!groups.has(c.ville)) groups.set(c.ville, []);
+        groups.get(c.ville).push(c);
+      });
+    return [...groups.entries()];
+  }, [cinemas, query]);
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return <Loader />;
 
   return (
-    <Box sx={{ backgroundColor: '#121212', minHeight: '100vh', py: 8 }}>
-      <Container maxWidth="lg">
-        <Typography 
-          variant="h2" 
-          component="h1" 
-          sx={{ 
-            mb: 2, 
-            fontWeight: 700,
-            color: '#FFD700',
-          }}
-        >
-          Nos cinémas
-        </Typography>
-        <Typography
-          variant="body1"
-          sx={{
-            color: '#CCCCCC',
-            marginBottom: 4,
-          }}
-        >
-          Choisissez un cinéma pour voir les films à l'affiche
-        </Typography>
+    <Box>
+      <Box sx={{ bgcolor: colors.bgDeep, borderBottom: `1px solid ${colors.border}` }}>
+        <Container maxWidth="xl" sx={{ px: { xs: 2, md: 10 }, py: { xs: 4, md: 6 } }}>
+          <Typography variant="h2" component="h1" sx={{ mb: 1 }}>
+            Nos cinémas
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 3 }}>
+            {cinemas.length} cinéma{cinemas.length > 1 ? 's' : ''} pour découvrir les films à l'affiche
+          </Typography>
+          <TextField
+            placeholder="Ville, code postal ou nom du cinéma"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            sx={{ width: { xs: '100%', md: 460 } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: 'primary.main' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Container>
+      </Box>
 
-        <Grid container spacing={4}>
-          {cinemas.length === 0 ? (
-            <Box className="w-full text-center py-12">
-              <Typography variant="h6" sx={{ color: '#CCCCCC' }}>
-                Aucun cinéma disponible
-              </Typography>
-            </Box>
-          ) : (
-            cinemas.map((cinema) => (
-              <Grid item xs={12} sm={6} md={4} key={cinema._id}>
-                <Card
-                  sx={{
-                    height: '100%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                    '&:hover': {
-                      transform: 'translateY(-8px)',
-                      borderColor: 'rgba(255, 215, 0, 0.5)',
-                      boxShadow: '0 12px 40px rgba(255, 215, 0, 0.3)',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    },
-                  }}
-                >
-                  <CardActionArea component={Link} to={`/cinemas/${cinema._id}`}>
-                    <CardContent sx={{ padding: 3, backgroundColor: 'transparent' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <LocationOn sx={{ color: '#FFD700', fontSize: 32, mr: 1 }} />
-                        <Typography
-                          variant="h5"
-                          component="h2"
-                          sx={{
-                            fontWeight: 700,
-                            color: '#FFFFFF',
-                          }}
-                        >
-                          {cinema.nom}
-                        </Typography>
-                      </Box>
-
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: '#CCCCCC',
-                            mb: 1,
-                          }}
-                        >
-                          {cinema.adresse}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: '#CCCCCC',
-                          }}
-                        >
-                          {cinema.codePostal} {cinema.ville}
-                        </Typography>
-                      </Box>
-
-                      {cinema.telephone && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Phone sx={{ fontSize: 18, color: '#FFD700', mr: 1 }} />
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: '#CCCCCC',
-                            }}
-                          >
-                            {cinema.telephone}
-                          </Typography>
-                        </Box>
-                      )}
-
-                      {cinema.email && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                          <Email sx={{ fontSize: 18, color: '#FFD700', mr: 1 }} />
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: '#CCCCCC',
-                            }}
-                          >
-                            {cinema.email}
-                          </Typography>
-                        </Box>
-                      )}
-
-                      {cinema.description && (
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: '#CCCCCC',
-                            mb: 2,
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {cinema.description}
-                        </Typography>
-                      )}
-
-                      <Chip
-                        icon={<Movie sx={{ color: '#FFD700' }} />}
-                        label="Voir les séances"
+      <Container maxWidth="xl" sx={{ px: { xs: 2, md: 10 }, py: 5 }}>
+        {byCity.length === 0 ? (
+          <EmptyState icon={TheaterComedy} title="Aucun cinéma trouvé">
+            Essayez une autre ville ou un autre code postal.
+          </EmptyState>
+        ) : (
+          byCity.map(([ville, list]) => (
+            <Box key={ville} sx={{ mb: 5 }}>
+              <Typography variant="overline" color="text.secondary">{ville}</Typography>
+              <Grid container spacing={2} sx={{ mt: 0 }}>
+                {list.map((cinema) => (
+                  <Grid item xs={12} md={6} key={cinema._id}>
+                    <Box
+                      component={Link}
+                      to={`/cinemas/${cinema._id}`}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'stretch',
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                        bgcolor: colors.paper,
+                        border: `1px solid ${colors.border}`,
+                        color: '#fff',
+                        textDecoration: 'none',
+                        transition: 'border-color 0.2s ease',
+                        '&:hover': { borderColor: 'primary.main' },
+                        '&:hover .cin-arrow': { color: 'primary.main', transform: 'translateX(3px)' },
+                      }}
+                    >
+                      <Box
                         sx={{
-                          backgroundColor: 'rgba(255, 215, 0, 0.2)',
-                          color: '#FFD700',
-                          fontWeight: 'bold',
+                          width: { xs: 96, sm: 140 },
+                          flexShrink: 0,
+                          bgcolor: colors.paperHigh,
+                          backgroundImage: cinema.image ? `url(${imageUrl(cinema.image)})` : 'none',
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
-                      />
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
+                      >
+                        {!cinema.image && <TheaterComedy sx={{ fontSize: 40, color: '#3a3b45' }} />}
+                      </Box>
+                      <Box sx={{ p: 2.5, flex: 1, minWidth: 0 }}>
+                        <Typography fontWeight={800} sx={{ fontSize: '1.1rem' }} noWrap>{cinema.nom}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                          <LocationOn sx={{ fontSize: 16 }} />
+                          {cinema.adresse}, {cinema.codePostal} {cinema.ville}
+                        </Typography>
+                        {cinema.description && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {cinema.description}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', pr: 2 }}>
+                        <ChevronRight className="cin-arrow" sx={{ color: 'text.secondary', transition: 'all 0.2s ease' }} />
+                      </Box>
+                    </Box>
+                  </Grid>
+                ))}
               </Grid>
-            ))
-          )}
-        </Grid>
+            </Box>
+          ))
+        )}
       </Container>
     </Box>
   );
 };
 
 export default Cinemas;
-

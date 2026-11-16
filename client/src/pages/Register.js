@@ -1,235 +1,83 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Alert, Box, Button, Grid, TextField, Typography } from '@mui/material';
 import { AuthContext } from '../context/AuthContext';
-import {
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Box,
-  Alert,
-  Grid
-} from '@mui/material';
-import { Movie } from '@mui/icons-material';
+import AuthLayout from '../components/common/AuthLayout';
+
+const FIELDS = [
+  { name: 'prenom', label: 'Prénom', required: true, half: true, autoComplete: 'given-name' },
+  { name: 'nom', label: 'Nom', required: true, half: true, autoComplete: 'family-name' },
+  { name: 'email', label: 'Email', type: 'email', required: true, autoComplete: 'email' },
+  { name: 'telephone', label: 'Téléphone', type: 'tel', half: true, autoComplete: 'tel' },
+  { name: 'dateNaissance', label: 'Date de naissance', type: 'date', half: true, shrink: true },
+  { name: 'password', label: 'Mot de passe', type: 'password', required: true, half: true, autoComplete: 'new-password', helperText: '6 caractères minimum' },
+  { name: 'confirmPassword', label: 'Confirmer', type: 'password', required: true, half: true, autoComplete: 'new-password' },
+];
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    nom: '',
-    prenom: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    telephone: '',
-    dateNaissance: ''
+    nom: '', prenom: '', email: '', password: '', confirmPassword: '', telephone: '', dateNaissance: '',
   });
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
     if (formData.password !== formData.confirmPassword) {
       setError('Les mots de passe ne correspondent pas.');
       return;
     }
-
     if (formData.password.length < 6) {
       setError('Le mot de passe doit contenir au moins 6 caractères.');
       return;
     }
-
     const { confirmPassword, ...userData } = formData;
+    setSubmitting(true);
     const result = await register(userData);
-    
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.message);
-    }
-  };
-
-  const textFieldStyles = {
-    '& .MuiOutlinedInput-root': {
-      color: '#FFFFFF',
-      '& fieldset': {
-        borderColor: 'rgba(255, 215, 0, 0.3)',
-      },
-      '&:hover fieldset': {
-        borderColor: '#FFD700',
-      },
-      '&.Mui-focused fieldset': {
-        borderColor: '#FFD700',
-      },
-    },
-    '& .MuiInputLabel-root': {
-      color: '#CCCCCC',
-    },
+    setSubmitting(false);
+    if (result.success) navigate('/');
+    else setError(result.message);
   };
 
   return (
-    <Box sx={{ backgroundColor: '#121212', minHeight: '100vh', py: 8 }}>
-      <Container maxWidth="sm">
-        <Paper
-          elevation={3}
-          sx={{
-            p: 6,
-            backgroundColor: '#1a1a1a',
-            border: '1px solid rgba(255, 215, 0, 0.2)',
-            borderRadius: '12px',
-          }}
-        >
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Movie sx={{ fontSize: 64, color: '#FFD700', mb: 2 }} />
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{ fontWeight: 700, mb: 1, color: '#FFD700' }}
-            >
-              Inscription
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#CCCCCC' }}>
-              Créez votre compte Ciné Go
-            </Typography>
-          </Box>
-
-        {error && (
-          <Alert severity="error" className="mb-4">
-            {error}
-          </Alert>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+    <AuthLayout title="Créer un compte" subtitle="Réservez vos places et retrouvez vos billets en un clic." maxWidth="sm">
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      <Box component="form" onSubmit={handleSubmit}>
+        <Grid container spacing={2}>
+          {FIELDS.map((f) => (
+            <Grid item xs={12} sm={f.half ? 6 : 12} key={f.name}>
               <TextField
                 fullWidth
-                label="Prénom"
-                name="prenom"
-                value={formData.prenom}
+                name={f.name}
+                label={f.label}
+                type={f.type || 'text'}
+                value={formData[f.name]}
                 onChange={handleChange}
-                required
-                sx={textFieldStyles}
+                required={f.required}
+                autoComplete={f.autoComplete}
+                helperText={f.helperText}
+                InputLabelProps={f.shrink ? { shrink: true } : undefined}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Nom"
-                name="nom"
-                value={formData.nom}
-                onChange={handleChange}
-                required
-                sx={textFieldStyles}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                sx={textFieldStyles}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Téléphone"
-                name="telephone"
-                value={formData.telephone}
-                onChange={handleChange}
-                sx={textFieldStyles}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Date de naissance"
-                name="dateNaissance"
-                type="date"
-                value={formData.dateNaissance}
-                onChange={handleChange}
-                InputLabelProps={{ shrink: true }}
-                sx={textFieldStyles}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Mot de passe"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                sx={textFieldStyles}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Confirmer le mot de passe"
-                name="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                sx={textFieldStyles}
-              />
-            </Grid>
-          </Grid>
-
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            size="large"
-            sx={{
-              mt: 3,
-              mb: 2,
-              backgroundColor: '#FFD700',
-              color: '#000000',
-              fontWeight: 600,
-              '&:hover': {
-                backgroundColor: '#FFA500',
-              },
-            }}
-          >
-            S'inscrire
-          </Button>
-        </form>
-
-        <Box sx={{ textAlign: 'center', mt: 3 }}>
-          <Typography variant="body2" sx={{ color: '#CCCCCC' }}>
-            Déjà un compte ?{' '}
-            <Link
-              to="/login"
-              style={{ color: '#FFD700', textDecoration: 'none' }}
-              onMouseEnter={(e) => (e.target.style.textDecoration = 'underline')}
-              onMouseLeave={(e) => (e.target.style.textDecoration = 'none')}
-            >
-              Connectez-vous
-            </Link>
-          </Typography>
+          ))}
+        </Grid>
+        <Button type="submit" variant="contained" size="large" fullWidth disabled={submitting} sx={{ mt: 3 }}>
+          S'inscrire
+        </Button>
+      </Box>
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>
+        Déjà inscrit ?{' '}
+        <Box component={Link} to="/login" sx={{ color: 'primary.main', fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+          Se connecter
         </Box>
-        </Paper>
-      </Container>
-    </Box>
+      </Typography>
+    </AuthLayout>
   );
 };
 
 export default Register;
-
