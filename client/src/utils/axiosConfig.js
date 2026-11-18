@@ -50,8 +50,9 @@ axiosInstance.interceptors.response.use(
   }
 );
 
-// Configurer axios par défaut pour utiliser cette instance
-axios.defaults.baseURL = API_URL;
+// Pas de baseURL sur l'axios global : l'ancien code passe déjà des URL complètes
+// (`${API_URL}/...`) et un baseURL relatif ("/api") les doublerait en "/api/api/...".
+// Le nouveau code utilise l'instance `axiosInstance` (export par défaut) avec des chemins courts.
 axios.defaults.timeout = 30000;
 axios.defaults.withCredentials = false;
 

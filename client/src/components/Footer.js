@@ -38,8 +38,8 @@ const Footer = () => {
       .catch(() => {});
   }, []);
 
-  // Pas de pied de page dans l'espace d'administration
-  if (pathname.startsWith('/admin')) return null;
+  // Pas de pied de page dans l'administration ni dans le parcours de réservation
+  if (pathname.startsWith('/admin') || pathname.startsWith('/reservation/')) return null;
 
   return (
     <Box component="footer" sx={{ bgcolor: colors.bgDeep, borderTop: `1px solid ${colors.border}`, mt: 6 }}>

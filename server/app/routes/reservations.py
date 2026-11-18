@@ -46,7 +46,8 @@ def _verify_payment(intent, *, total, count, seance):
         raise ApiError("Paiement non confirmé.")
     if intent.amount != round(total * 100):
         raise ApiError("Montant du paiement invalide.")
-    metadata = intent.metadata or {}
+    # Depuis stripe-python 12, les objets Stripe ne sont plus des dict : conversion explicite
+    metadata = intent.metadata.to_dict() if hasattr(intent.metadata, "to_dict") else dict(intent.metadata or {})
     if metadata.get("userId") != str(g.user.id):
         raise ApiError("Paiement non associé à cet utilisateur.")
     if metadata.get("seanceId") != str(seance.id):

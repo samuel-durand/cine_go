@@ -4,16 +4,15 @@
   create-admin EMAIL PWD  crée un compte administrateur
   seed-genres             insère les genres par défaut
   seed-salles             crée un cinéma par défaut et ses salles
-  seed-seances --days N   génère des séances pour les N prochains jours
+  seed-cinemas            crée le réseau de cinémas Ciné Go et leurs salles
+  seed-seances --days N   programme les séances des N prochains jours (--reset pour refaire)
 """
-import random
-from datetime import date, timedelta
 
 import click
 
 from .extensions import db
-from .models import Cinema, Film, Genre, Salle, Seance, User
-from .services.seats import count_plan_seats, create_plan, plan_for_salle
+from .models import Cinema, Genre, Salle, User
+from .services.seats import create_plan
 
 GENRES = {
     "action": "Films avec beaucoup d'action, de combats et de poursuites",
@@ -46,7 +45,30 @@ SALLES = [
          plan=lambda: create_plan(10, 20, seat_type="premium", limit=200, price_modifier=3)),
 ]
 
-CRENEAUX = ["11:00", "14:00", "17:00", "20:00", "22:30"]
+CINEMAS = [
+    dict(nom="Ciné Go Paris", adresse="1 Place du Cinéma", ville="Paris", code_postal="75001",
+         description="Cinéma principal créé automatiquement"),
+    dict(nom="Ciné Go Paris Bercy", adresse="2 cour Saint-Émilion", ville="Paris", code_postal="75012",
+         description="Au cœur de Bercy Village, avec salle IMAX."),
+    dict(nom="Ciné Go Lyon Part-Dieu", adresse="17 rue du Docteur Bouchut", ville="Lyon", code_postal="69003",
+         description="À deux pas de la gare Part-Dieu."),
+    dict(nom="Ciné Go Marseille Vieux-Port", adresse="36 quai du Port", ville="Marseille", code_postal="13002",
+         description="Face au Vieux-Port."),
+    dict(nom="Ciné Go Bordeaux", adresse="13 quai de Queyries", ville="Bordeaux", code_postal="33100",
+         description="Sur la rive droite, quartier Bastide."),
+    dict(nom="Ciné Go Lille", adresse="40 rue de Béthune", ville="Lille", code_postal="59000",
+         description="En plein centre-ville."),
+]
+
+
+def _ensure_salles(cinema) -> int:
+    """Crée les salles par défaut manquantes d'un cinéma ; renvoie le nombre créé."""
+    created = 0
+    for spec in SALLES:
+        if not Salle.query.filter_by(nom=spec["nom"], cinema_id=cinema.id).first():
+            db.session.add(Salle(cinema_id=cinema.id, **{**spec, "plan": spec["plan"]()}))
+            created += 1
+    return created
 
 
 def add_missing_columns() -> list[str]:
@@ -118,45 +140,41 @@ def register_cli(app):
 
     @app.cli.command("seed-salles")
     def seed_salles():
+        """Crée un cinéma par défaut (si aucun) et ses salles."""
         cinema = Cinema.query.filter_by(actif=True).first()
         if not cinema:
-            cinema = Cinema(nom="Ciné Go Paris", adresse="1 Place du Cinéma", ville="Paris",
-                            code_postal="75001", description="Cinéma principal créé automatiquement")
+            cinema = Cinema(**CINEMAS[0])
             db.session.add(cinema)
             db.session.flush()
             click.echo(f"✅ Cinéma par défaut créé : {cinema.nom}")
-        created = 0
-        for spec in SALLES:
-            if Salle.query.filter_by(nom=spec["nom"], cinema_id=cinema.id).first():
-                continue
-            db.session.add(Salle(cinema_id=cinema.id, **{**spec, "plan": spec["plan"]()}))
-            created += 1
+        created = _ensure_salles(cinema)
         db.session.commit()
         click.echo(f"✅ {created} salle(s) créée(s) dans « {cinema.nom} ».")
 
+    @app.cli.command("seed-cinemas")
+    def seed_cinemas():
+        """Crée le réseau de cinémas Ciné Go (une salle de chaque type par cinéma)."""
+        created = salles = 0
+        for spec in CINEMAS:
+            cinema = Cinema.query.filter_by(nom=spec["nom"]).first()
+            if not cinema:
+                cinema = Cinema(**spec)
+                db.session.add(cinema)
+                db.session.flush()
+                created += 1
+            salles += _ensure_salles(cinema)
+        db.session.commit()
+        click.echo(f"✅ {created} cinéma(s) et {salles} salle(s) créé(s).")
+
     @app.cli.command("seed-seances")
-    @click.option("--days", default=7, show_default=True, help="Nombre de jours à générer")
-    def seed_seances(days):
-        """Génère des séances (film déjà sorti aléatoire par créneau), sans doublons."""
-        films = Film.query.filter(Film.actif.is_(True), Film.date_sortie <= date.today()).all()
-        salles = Salle.query.filter_by(actif=True).all()
-        if not films or not salles:
-            raise click.ClickException("Il faut au moins un film actif et une salle active.")
-        created = skipped = 0
-        for offset in range(days):
-            day = date.today() + timedelta(days=offset)
-            for salle in salles:
-                for heure in CRENEAUX:
-                    if Seance.query.filter_by(salle_id=salle.id, date=day, heure=heure).first():
-                        skipped += 1
-                        continue
-                    film = random.choice(films)
-                    plan = plan_for_salle(salle)
-                    total = count_plan_seats(plan) or salle.capacite
-                    db.session.add(Seance(film_id=film.id, salle_id=salle.id, date=day, heure=heure,
-                                          plan=plan, places_total=total, places_disponibles=total,
-                                          prix=film.prix))
-                    created += 1
-            db.session.commit()
-            click.echo(f"✅ {day.isoformat()} : séances générées")
-        click.echo(f"Terminé : {created} créées, {skipped} déjà existantes.")
+    @click.option("--days", default=7, show_default=True, help="Nombre de jours à programmer")
+    @click.option("--reset", is_flag=True, help="Supprime d'abord les séances futures sans réservation")
+    def seed_seances(days, reset):
+        """Programme les séances de chaque salle (films à l'affiche, horaires enchaînés)."""
+        from .services.programmation import generer_seances
+        try:
+            stats = generer_seances(days, reset=reset, echo=click.echo)
+        except ValueError as exc:
+            raise click.ClickException(str(exc))
+        click.echo(f"Terminé : {stats['creees']} séances créées ({stats['films']} films, "
+                   f"{stats['salles']} salles), {stats['supprimees']} supprimées.")

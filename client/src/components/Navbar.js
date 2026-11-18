@@ -22,6 +22,9 @@ const NAV_LINKS = [
 export const isOverlayRoute = (pathname) =>
   pathname === '/' || /^\/films\/[^/]+$/.test(pathname) || /^\/cinemas\/[^/]+$/.test(pathname);
 
+// Parcours de réservation : plein écran, sans la navigation du site
+export const isTunnelRoute = (pathname) => pathname.startsWith('/reservation/');
+
 const useScrolled = (threshold = 40) => {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -168,6 +171,8 @@ const Navbar = () => {
   const transparent = isOverlayRoute(location.pathname) && !scrolled && !drawerOpen;
 
   useEffect(() => setDrawerOpen(false), [location.pathname]);
+
+  if (isTunnelRoute(location.pathname)) return null;
 
   const handleLogout = () => {
     setAnchorEl(null);

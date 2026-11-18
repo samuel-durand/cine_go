@@ -26,7 +26,8 @@ flask --app wsgi seed-genres
 flask --app wsgi seed-salles
 flask --app wsgi create-admin admin@cinego.com motdepasse
 flask --app wsgi import-pathe                         # films au cinéma + les plus attendus
-flask --app wsgi seed-seances --days 7
+flask --app wsgi seed-cinemas                         # réseau de 6 cinémas (optionnel)
+flask --app wsgi seed-seances --days 7                # programme de la semaine (--reset pour refaire)
 python wsgi.py                                        # http://localhost:5000
 
 # Front (autre terminal)

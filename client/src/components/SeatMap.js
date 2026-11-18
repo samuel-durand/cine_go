@@ -1,331 +1,167 @@
-import React, { useState } from 'react';
-import { Box, Typography, Tooltip } from '@mui/material';
-import { Accessibility, CheckCircle, Close } from '@mui/icons-material';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Box, Tooltip, Typography } from '@mui/material';
+import { colors } from '../theme';
 
-const SeatMap = ({
-  plan,
-  reservedSeats = [],
-  selectedSeats = [],
-  onToggleSeat,
-}) => {
-  const [hoveredSeat, setHoveredSeat] = useState(null);
-  const reservedSet = new Set(reservedSeats.map((seat) => seat.seatId));
-  const selectedSet = new Set(selectedSeats.map((seat) => seat.seatId));
+// Dimensions d'un fauteuil et des espacements (px, avant mise à l'échelle)
+const SEAT_W = 26;
+const SEAT_H = 22;
+const GAP = 6;
+const ROW_GAP = 10;
+const AISLE = 26;
 
-  const getSeatStyle = (seat, isReserved, isSelected) => {
-    if (isReserved) {
-      return {
-        backgroundColor: 'rgba(255, 255, 255, 0.06)',
-        color: 'rgba(255, 255, 255, 0.3)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        cursor: 'not-allowed',
-      };
-    }
-    if (isSelected) {
-      return {
-        background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-        color: '#ffffff',
-        border: '1px solid #34d399',
-        cursor: 'pointer',
-        boxShadow: '0 0 12px rgba(16, 185, 129, 0.5)',
-        transform: 'scale(1.08)',
-      };
-    }
-    // Siège libre
-    return {
-      backgroundColor: 'rgba(144, 202, 249, 0.12)',
-      color: '#90caf9',
-      border: '1px solid rgba(144, 202, 249, 0.4)',
-      cursor: 'pointer',
-      '&:hover': {
-        backgroundColor: 'rgba(144, 202, 249, 0.35)',
-        borderColor: '#90caf9',
-        transform: 'scale(1.15)',
-        boxShadow: '0 0 10px rgba(144, 202, 249, 0.4)',
-      },
-    };
-  };
+const GOLD = colors.gold;
+const GREEN = '#34d399';
+const TAKEN = 'rgba(255,255,255,0.28)';
 
-  // Grouper les rangées par blocs (basé sur les gaps dans le plan)
-  const groupRowsIntoBlocks = () => {
-    if (!plan?.rows) return [];
+export const isPmr = (seat) => Boolean(seat.accessible || seat.type === 'accessible');
 
-    const blocks = [];
-    let currentBlock = [];
+const seatLabel = (seat) =>
+  [
+    `Rang ${seat.row} · Place ${seat.number}`,
+    seat.type === 'vip' && 'Fauteuil VIP',
+    seat.type === 'premium' && 'Fauteuil Premium',
+    isPmr(seat) && 'Place PMR',
+    seat.priceModifier > 0 && `+${seat.priceModifier} €`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
-    plan.rows.forEach((row) => {
-      const avgSeats = plan.rows.reduce((sum, r) => sum + (r.seats?.length || 0), 0) / plan.rows.length;
-      const isSeparator = row.seats?.length < avgSeats * 0.5;
+/** Pictogramme de fauteuil (ou de place PMR) dessiné en SVG selon son état. */
+export const SeatIcon = ({ state = 'free', pmr = false, width = SEAT_W, height = SEAT_H }) => {
+  const stroke = state === 'selected' ? GREEN : state === 'taken' ? TAKEN : GOLD;
+  const fill = state === 'selected' ? GREEN : state === 'taken' ? 'rgba(255,255,255,0.05)' : 'rgba(255,215,0,0.10)';
+  return (
+    <svg width={width} height={height} viewBox="0 0 26 22" aria-hidden="true" style={{ display: 'block' }}>
+      {pmr ? (
+        <rect x="2" y="1.5" width="22" height="19" rx="4" fill={fill} stroke={stroke} strokeWidth="1.6" />
+      ) : (
+        <g fill={fill} stroke={stroke} strokeWidth="1.6" strokeLinejoin="round">
+          {/* Assise et accoudoirs, puis dossier par-dessus */}
+          <rect x="1.5" y="8.5" width="23" height="12" rx="3" />
+          <rect x="5.5" y="1.5" width="15" height="13" rx="3.5" />
+        </g>
+      )}
+      {state === 'selected' && (
+        <path d="M8.5 11.5l3 3 6-6.5" fill="none" stroke="#0f1014" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+      {state !== 'selected' && pmr && (
+        // Pictogramme fauteuil roulant
+        <g fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round">
+          <circle cx="12.5" cy="5.5" r="1.3" fill={stroke} stroke="none" />
+          <path d="M12.5 8v4.5h4l1.5 3.5" />
+          <path d="M10.3 10.6a4 4 0 1 0 5.2 5.2" />
+        </g>
+      )}
+    </svg>
+  );
+};
 
-      if (isSeparator && currentBlock.length > 0) {
-        blocks.push(currentBlock);
-        currentBlock = [];
-      } else {
-        currentBlock.push(row);
-      }
-    });
+export const SeatLegend = () => (
+  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 2, sm: 3 } }}>
+    {[
+      { state: 'selected', label: 'Mes places' },
+      { state: 'free', label: 'Places libres' },
+      { state: 'taken', label: 'Places occupées' },
+    ].map((item) => (
+      <Box key={item.label} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <SeatIcon state={item.state} width={20} height={17} />
+        <Typography variant="body2">{item.label}</Typography>
+      </Box>
+    ))}
+  </Box>
+);
 
-    if (currentBlock.length > 0) {
-      blocks.push(currentBlock);
-    }
+// Allées : 3 blocs pour les grandes salles, 2 pour les moyennes, aucune pour les petites
+const aislesFor = (maxSeats) => {
+  if (maxSeats >= 14) {
+    const side = Math.round(maxSeats / 4);
+    return [side, maxSeats - side];
+  }
+  if (maxSeats >= 10) return [Math.ceil(maxSeats / 2)];
+  return [];
+};
 
-    return blocks.length > 0 ? blocks : [plan.rows];
-  };
+/**
+ * Plan de salle façon « grand réseau » : écran en bas (le rang A est donc le plus
+ * proche), fauteuils alignés en colonnes avec allées, mise à l'échelle automatique.
+ */
+const SeatMap = ({ plan, reservedSeats = [], selectedSeats = [], onToggleSeat }) => {
+  const rows = useMemo(() => [...(plan?.rows || [])].reverse(), [plan]);
+  const reserved = useMemo(() => new Set(reservedSeats.map((s) => s.seatId)), [reservedSeats]);
+  const selected = useMemo(() => new Set(selectedSeats.map((s) => s.seatId)), [selectedSeats]);
 
-  const blocks = groupRowsIntoBlocks();
+  const maxSeats = rows.reduce((m, r) => Math.max(m, r.seats?.length || 0), 0);
+  const aisles = aislesFor(maxSeats);
+  // Position horizontale d'une colonne (0..maxSeats-1) en tenant compte des allées
+  const xOf = (col) => col * (SEAT_W + GAP) + aisles.filter((a) => col >= a).length * AISLE;
+  const naturalWidth = xOf(maxSeats - 1) + SEAT_W;
+  const naturalHeight = rows.length * (SEAT_H + ROW_GAP);
 
-  // Adapter la taille des sièges aux grandes salles
-  const totalSeats = plan?.rows?.reduce((sum, row) => sum + (row.seats?.length || 0), 0) || 0;
-  const isLargeHall = totalSeats > 150;
-  const seatSize = isLargeHall ? 32 : 40;
-  const seatGapPx = isLargeHall ? 4 : 6;
-  const labelWidth = 28;
-
-  const maxSeatsPerRow = plan?.rows?.reduce((max, row) => Math.max(max, row.seats?.length || 0), 0) || 0;
-  const seatAreaWidth = maxSeatsPerRow * seatSize + Math.max(0, maxSeatsPerRow - 1) * seatGapPx;
-
-  const legendItems = [
-    {
-      label: 'Libre',
-      box: {
-        backgroundColor: 'rgba(144, 202, 249, 0.12)',
-        border: '1px solid rgba(144, 202, 249, 0.4)',
-      },
-    },
-    {
-      label: 'Mes places',
-      box: {
-        background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-        border: '1px solid #34d399',
-      },
-      icon: <CheckCircle sx={{ fontSize: 13, color: '#fff' }} />,
-    },
-    {
-      label: 'Occupé',
-      box: {
-        backgroundColor: 'rgba(255, 255, 255, 0.06)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-      },
-      icon: <Close sx={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }} />,
-    },
-    {
-      label: 'Accessible',
-      box: {
-        backgroundColor: 'rgba(59, 130, 246, 0.25)',
-        border: '1px solid #3b82f6',
-      },
-      icon: <Accessibility sx={{ fontSize: 13, color: '#60a5fa' }} />,
-    },
-  ];
+  const containerRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return undefined;
+    // Pleine largeur disponible, sans descendre sous 0,6 (défilement horizontal au-delà)
+    const update = () => setScale(Math.max(0.6, Math.min(1.6, (el.clientWidth - 16) / naturalWidth)));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [naturalWidth]);
 
   return (
-    <Box className="w-full">
-      {/* Salle */}
-      <Box
-        className="rounded-lg mb-4"
-        sx={{
-          p: { xs: 2, sm: 3 },
-          background: 'linear-gradient(180deg, rgba(13, 18, 30, 0.9) 0%, rgba(23, 30, 48, 0.9) 100%)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '16px',
-          // Pas de scroll : la salle est visible en entier
-          // (overflowX en secours uniquement pour les très petits écrans)
-          overflowX: 'auto',
-        }}
-      >
-        {/* Tout le contenu partage la même colonne centrée : l'écran est
-            toujours aligné avec le bloc de sièges, quelle que soit la salle */}
-        <Box
-          sx={{
-            width: 'fit-content',
-            minWidth: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          {/* Rangées */}
-          {blocks.map((block, blockIndex) => (
-            <Box
-              key={blockIndex}
-              sx={{ display: 'flex', flexDirection: 'column', gap: `${seatGapPx + 2}px`, mb: blockIndex < blocks.length - 1 ? 3 : 0 }}
-            >
-              {block.map((row) => (
-                <Box key={row.name} sx={{ display: 'flex', alignItems: 'center' }}>
-                  {/* Label symétrique des deux côtés pour un centrage parfait */}
-                  <Typography
-                    variant="caption"
-                    sx={{ width: labelWidth, flexShrink: 0, textAlign: 'center', fontWeight: 700, color: 'rgba(255, 255, 255, 0.45)' }}
+    <Box ref={containerRef} sx={{ width: '100%', overflowX: 'auto' }}>
+      <Box sx={{ width: naturalWidth * scale, mx: 'auto', py: 1 }}>
+        <Box sx={{ position: 'relative', width: naturalWidth * scale, height: naturalHeight * scale }}>
+          {rows.map((row, r) => {
+            const seats = row.seats || [];
+            // Rangée incomplète : centrée sur la grille
+            const offset = Math.floor((maxSeats - seats.length) / 2);
+            return seats.map((seat, i) => {
+              const state = reserved.has(seat.seatId) ? 'taken' : selected.has(seat.seatId) ? 'selected' : 'free';
+              return (
+                <Tooltip key={seat.seatId} title={state === 'taken' ? 'Place occupée' : seatLabel(seat)} arrow disableInteractive>
+                  <Box
+                    component="button"
+                    type="button"
+                    aria-label={`${seatLabel(seat)}${state === 'selected' ? ' (sélectionnée)' : state === 'taken' ? ' (occupée)' : ''}`}
+                    aria-pressed={state === 'selected'}
+                    disabled={state === 'taken'}
+                    onClick={() => state !== 'taken' && onToggleSeat(seat)}
+                    sx={{
+                      position: 'absolute',
+                      left: xOf(offset + i) * scale,
+                      top: r * (SEAT_H + ROW_GAP) * scale,
+                      width: SEAT_W * scale,
+                      height: SEAT_H * scale,
+                      p: 0,
+                      border: 0,
+                      bgcolor: 'transparent',
+                      cursor: state === 'taken' ? 'not-allowed' : 'pointer',
+                      transition: 'transform 0.12s ease',
+                      '&:hover': state === 'taken' ? {} : { transform: 'scale(1.18)' },
+                      '&:focus-visible': { outline: `2px solid ${GOLD}`, outlineOffset: 2, borderRadius: '4px' },
+                    }}
                   >
-                    {row.name}
-                  </Typography>
-
-                  <Box sx={{ display: 'flex', gap: `${seatGapPx}px`, flexWrap: 'nowrap' }}>
-                    {row.seats?.map((seat) => {
-                      const isReserved = reservedSet.has(seat.seatId);
-                      const isSelected = selectedSet.has(seat.seatId);
-                      const isAccessible = seat.type === 'accessible';
-                      const isHovered = hoveredSeat === seat.seatId;
-                      const seatStyle = getSeatStyle(seat, isReserved, isSelected);
-
-                      const handleClick = () => {
-                        if (isReserved) return;
-                        onToggleSeat(seat);
-                      };
-
-                      return (
-                        <Tooltip
-                          key={seat.seatId}
-                          title={
-                            <Box>
-                              <Typography variant="body2" className="font-bold">
-                                {seat.label}
-                              </Typography>
-                              <Typography variant="caption">
-                                Rangée {row.name} • Siège {seat.number}
-                              </Typography>
-                              {seat.type !== 'standard' && (
-                                <Typography variant="caption" display="block">
-                                  Type: {seat.type}
-                                </Typography>
-                              )}
-                              {seat.priceModifier > 0 && (
-                                <Typography variant="caption" display="block">
-                                  Supplément: +{seat.priceModifier} €
-                                </Typography>
-                              )}
-                              {isReserved && (
-                                <Typography variant="caption" display="block" color="error">
-                                  Réservé
-                                </Typography>
-                              )}
-                              {isSelected && (
-                                <Typography variant="caption" display="block" color="success.main">
-                                  Sélectionné
-                                </Typography>
-                              )}
-                            </Box>
-                          }
-                          placement="top"
-                          arrow
-                        >
-                          <Box
-                            onMouseEnter={() => setHoveredSeat(seat.seatId)}
-                            onMouseLeave={() => setHoveredSeat(null)}
-                            onClick={handleClick}
-                            sx={{
-                              width: seatSize,
-                              height: seatSize,
-                              // Forme de fauteuil : arrondi plus marqué en haut
-                              borderRadius: '8px 8px 4px 4px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              position: 'relative',
-                              transition: 'all 0.15s ease',
-                              flexShrink: 0,
-                              ...seatStyle,
-                            }}
-                          >
-                            {isReserved ? (
-                              <Close sx={{ fontSize: isLargeHall ? 13 : 15, color: 'rgba(255,255,255,0.3)' }} />
-                            ) : (
-                              (isHovered || isSelected) && (
-                                <Typography
-                                  variant="caption"
-                                  sx={{ fontSize: isLargeHall ? '9px' : '10px', lineHeight: 1, fontWeight: 700 }}
-                                >
-                                  {seat.number}
-                                </Typography>
-                              )
-                            )}
-
-                            {isAccessible && !isReserved && (
-                              <Accessibility
-                                sx={{
-                                  fontSize: isLargeHall ? 11 : 13,
-                                  position: 'absolute',
-                                  top: -3,
-                                  right: -3,
-                                  color: '#60a5fa',
-                                  backgroundColor: '#0d121e',
-                                  borderRadius: '50%',
-                                  padding: '1px',
-                                }}
-                              />
-                            )}
-                          </Box>
-                        </Tooltip>
-                      );
-                    })}
+                    <SeatIcon state={state} pmr={isPmr(seat)} width={SEAT_W * scale} height={SEAT_H * scale} />
                   </Box>
+                </Tooltip>
+              );
+            });
+          })}
+        </Box>
 
-                  <Box sx={{ width: labelWidth, flexShrink: 0 }} />
-                </Box>
-              ))}
-            </Box>
-          ))}
-
-          {/* Écran */}
-          <Box sx={{ width: `${seatAreaWidth}px`, maxWidth: '100%', mt: 4 }}>
-            <Box
-              sx={{
-                height: 10,
-                width: '100%',
-                background: 'linear-gradient(0deg, #90caf9 0%, rgba(144, 202, 249, 0.3) 100%)',
-                borderRadius: '0 0 50% 50% / 0 0 100% 100%',
-                boxShadow: '0 6px 24px rgba(144, 202, 249, 0.45)',
-              }}
-            />
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                textAlign: 'center',
-                mt: 1,
-                letterSpacing: '0.4em',
-                textTransform: 'uppercase',
-                color: 'rgba(255, 255, 255, 0.5)',
-                fontWeight: 600,
-              }}
-            >
-              Écran
-            </Typography>
+        {/* Écran en bas, comme vu depuis le fond de la salle */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 4 }}>
+          <Box component="svg" viewBox="0 0 100 10" preserveAspectRatio="none" sx={{ flex: 1, height: 12 }}>
+            <path d="M0 2 Q 60 9 100 8" fill="none" stroke={GOLD} strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" opacity="0.8" />
+          </Box>
+          <Typography sx={{ color: GOLD, fontWeight: 500, opacity: 0.9 }}>Écran</Typography>
+          <Box component="svg" viewBox="0 0 100 10" preserveAspectRatio="none" sx={{ flex: 1, height: 12 }}>
+            <path d="M0 8 Q 40 9 100 2" fill="none" stroke={GOLD} strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" opacity="0.8" />
           </Box>
         </Box>
-      </Box>
-
-      {/* Légende */}
-      <Box
-        className="flex flex-wrap items-center justify-center"
-        sx={{
-          gap: { xs: 2, sm: 3 },
-          p: 2,
-          backgroundColor: 'rgba(255, 255, 255, 0.04)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '12px',
-        }}
-      >
-        {legendItems.map((item) => (
-          <Box key={item.label} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box
-              sx={{
-                width: 22,
-                height: 22,
-                borderRadius: '6px 6px 3px 3px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                ...item.box,
-              }}
-            >
-              {item.icon || null}
-            </Box>
-            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-              {item.label}
-            </Typography>
-          </Box>
-        ))}
       </Box>
     </Box>
   );

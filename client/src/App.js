@@ -7,7 +7,7 @@ import theme from './theme';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import { AdminRedirect, AdminTokenGuard } from './components/AdminTokenRoute';
-import Navbar, { isOverlayRoute } from './components/Navbar';
+import Navbar, { isOverlayRoute, isTunnelRoute } from './components/Navbar';
 import { WatchlistProvider } from './context/WatchlistContext';
 import Footer from './components/Footer';
 import Loader from './components/common/Loader';
@@ -62,7 +62,7 @@ const Private = ({ children, adminOnly }) => <PrivateRoute adminOnly={adminOnly}
 const Main = ({ children }) => {
   const { pathname } = useLocation();
   return (
-    <Box component="main" sx={{ flex: 1, pt: isOverlayRoute(pathname) ? 0 : { xs: '60px', md: '72px' } }}>
+    <Box component="main" sx={{ flex: 1, pt: isOverlayRoute(pathname) || isTunnelRoute(pathname) ? 0 : { xs: '60px', md: '72px' } }}>
       {children}
     </Box>
   );

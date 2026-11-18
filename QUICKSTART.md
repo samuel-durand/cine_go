@@ -34,9 +34,10 @@ Renseignez au minimum dans `server/.env` : `MYSQL_*` (ou `DATABASE_URL`), `JWT_S
 flask --app wsgi init-db                              # crée les tables
 flask --app wsgi seed-genres                          # genres par défaut
 flask --app wsgi seed-salles                          # un cinéma + 5 salles avec plans
+flask --app wsgi seed-cinemas                         # (optionnel) réseau de 6 cinémas Ciné Go
 flask --app wsgi create-admin admin@cinego.com admin123
 flask --app wsgi import-pathe                         # films au cinéma + 30 plus attendus (pathe.fr)
-flask --app wsgi seed-seances --days 7                # séances pour la semaine
+flask --app wsgi seed-seances --days 7                # programme de la semaine (--reset pour refaire)
 python wsgi.py                                        # API sur http://localhost:5000
 ```
 

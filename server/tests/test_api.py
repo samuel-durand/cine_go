@@ -22,8 +22,11 @@ class FakeStripe:
         @staticmethod
         def create(amount, currency, metadata):
             pid = f"pi_{len(FakeStripe.intents) + 1}"
-            FakeStripe.intents[pid] = SimpleNamespace(id=pid, amount=amount, metadata=metadata,
-                                                      status="succeeded", client_secret=f"{pid}_secret")
+            # Comme le vrai SDK : metadata est un StripeObject, pas un dict
+            import stripe
+            FakeStripe.intents[pid] = SimpleNamespace(
+                id=pid, amount=amount, metadata=stripe.StripeObject.construct_from(metadata, "sk_test"),
+                status="succeeded", client_secret=f"{pid}_secret")
             return FakeStripe.intents[pid]
 
         @staticmethod
@@ -262,3 +265,36 @@ def test_add_missing_columns(app):
         assert "films.envies" in add_missing_columns()
         assert "envies" in {c["name"] for c in inspect(db.engine).get_columns("films")}
         assert add_missing_columns() == []
+
+
+def test_programmation_enchaine_sans_chevauchement(app):
+    from app.services.programmation import DERNIERE_SEANCE, generer_seances, programme_jour, films_a_programmer
+
+    with app.app_context():
+        genre_id = Genre.query.first().id
+        for i in range(6):
+            db.session.add(Film(titre=f"F{i}", description="d", duree=90 + 20 * i, genre_id=genre_id,
+                                realisateur="r", acteurs=[], date_sortie=date.today(), prix=9))
+        db.session.add(Film(titre="Futur", description="d", duree=100, genre_id=genre_id, realisateur="r",
+                            acteurs=[], date_sortie=date.today() + timedelta(days=30), prix=9))
+        db.session.commit()
+        for i in range(2):
+            db.session.add(Salle(cinema_id=1, nom=f"Extra {i}", type="classic", capacite=10,
+                                 plan=create_plan(2, 5, limit=10)))
+        db.session.commit()
+
+        films = films_a_programmer()
+        assert "Futur" not in {f.titre for f in films}
+        salles = Salle.query.all()
+        programme = programme_jour(salles, films, date.today())
+        minutes = lambda h: int(h[:2]) * 60 + int(h[3:])
+        for salle in salles:
+            seances = [(minutes(h), f) for s, h, f in programme if s.id == salle.id]
+            assert seances and all(t <= DERNIERE_SEANCE for t, _ in seances)
+            for (t1, f1), (t2, _) in zip(seances, seances[1:]):
+                assert t2 >= t1 + f1.duree, "deux séances se chevauchent dans la même salle"
+
+        stats = generer_seances(2, reset=True, echo=lambda *_: None)
+        assert stats["creees"] > 0 and stats["supprimees"] == 1   # la séance de la fixture
+        programmes = {s.film.titre for s in Seance.query.all()}
+        assert {f"F{i}" for i in range(6)} <= programmes and "Futur" not in programmes
